@@ -11,19 +11,106 @@ use defmt_rtt as _;
 use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
+use embassy_nrf::{gpio, Peripheral, Peripherals};
+use embassy_nrf::gpio::{AnyPin, Level, Output, OutputDrive, Pin};
+use embassy_sync::mutex::Mutex;
+use embassy_time::{Duration, Timer};
 use nrf_softdevice::{raw, Softdevice};
 use nrf_softdevice::ble::{gatt_server, peripheral};
 #[allow(unused)]
 use panic_probe as _;
+// use smallvec::SmallVec;
+use static_cell::StaticCell;
 
-// global logger
-
-// time driver
 
 #[embassy_executor::task]
 async fn softdevice_task(sd: &'static Softdevice) -> ! {
     sd.run().await
 }
+
+
+// static PIN_WRAPPER: StaticCell<OutPinWrapper> = StaticCell::new();
+
+
+// struct OutPinWrapper {
+//     pins: SmallVec<[Output<'static, AnyPin>; 16]>,
+// }
+
+
+// impl OutPinWrapper {
+//     fn register<P>(&mut self, pin: P)  -> Option<&mut Output<'static, AnyPin>> where P: Into<AnyPin> {
+//         if self.pins.len() + 1 > 16 {
+//             return None;
+//         }
+//         self.pins.push(Output::new(pin.into(), Level::Low, OutputDrive::Standard));
+//         self.pins.last_mut()
+//     }
+//     fn get(&mut self, index: usize) -> Option<&mut Output<'static, AnyPin>> {
+//         self.pins.get_mut(index)
+//     }
+//     fn new() -> OutPinWrapper {
+//             // Output::new(gpio::AnyPin::from(p.P0_17), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_19), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_20), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_21), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_22), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_23), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_24), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_25), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_26), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_27), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_28), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_29), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_30), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P0_31), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_00), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_01), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_02), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_03), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_04), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_05), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_06), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_07), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_08), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_09), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_10), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_11), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_12), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_13), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_14), Level::Low, OutputDrive::Standard),
+//             // Output::new(gpio::AnyPin::from(p.P1_15), Level::Low, OutputDrive::Standard),
+//         // ];
+//
+//
+//         Self {
+//             pins: SmallVec::default()
+//         }
+//     }
+//
+//     fn all_high(&mut self) {
+//         for pin in self.pins.iter_mut() {
+//             pin.set_high();
+//         }
+//     }
+//
+//     fn all_low(&mut self) {
+//         for pin in self.pins.iter_mut() {
+//             pin.set_low();
+//         }
+//     }
+// }
+
+
+// #[embassy_executor::task]
+// async fn blink_task(pw: &'static mut OutPinWrapper) -> ! {
+//     Timer::after(Duration::from_millis(5000)).await;
+//     loop {
+//         pw.all_high();
+//         Timer::after(Duration::from_millis(50)).await;
+//         pw.all_low();
+//         Timer::after(Duration::from_millis(50)).await;
+//     }
+// }
 
 #[nrf_softdevice::gatt_service(uuid = "180f")]
 struct BatteryService {
@@ -43,9 +130,44 @@ struct Server {
     foo: FooService,
 }
 
+fn groups(p: Peripherals) {
+    // Output::new(gpio::AnyPin::from(p.P0_00), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_01), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_02), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_03), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_04), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_05), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_06), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_07), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_08), Level::Low, OutputDrive::Standard),
+    // // Output::new()// gpio::AnyPin::from(p.P0_09), Level::Low, OutputDrive::Standard),
+    // // Output::new()// gpio::AnyPin::from(p.P0_10), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_11), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_12), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_13), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_14), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_15), Level::Low, OutputDrive::Standard),
+    // Output::new(gpio::AnyPin::from(p.P0_16), Level::Low, OutputDrive::Standard),
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
+    let p: Peripherals = embassy_nrf::init(Default::default());
+
     info!("Hello World!");
+
+    // let pw = PIN_WRAPPER.init(OutPinWrapper::new());
+
+    // pw.all_high();
+    //
+    // match spawner.spawn(blink_task(pw)) {
+    //     Ok(_) => {
+    //         info!("Spawned")
+    //     },
+    //     Err(err) => {
+    //         info!("Failed to spawn: {}", err)
+    //     }
+    // };
 
     let config = nrf_softdevice::Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {

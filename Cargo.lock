@@ -875,16 +875,21 @@ dependencies = [
  "embassy-nrf",
  "embassy-sync 0.1.0",
  "embassy-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "embedded-storage",
- "embedded-storage-async",
  "fixed",
  "futures",
  "heapless",
  "nrf-softdevice",
  "nrf-softdevice-s140",
  "panic-probe",
+ "smallvec",
  "static_cell",
 ]
+
+[[package]]
+name = "smallvec"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
 name = "spin"
