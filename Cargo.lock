@@ -419,6 +419,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-alloc"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8931e47e33c5d3194fbcf9cc82df0919193bd2fa40008f388eb1d28fd9c9ea6b"
+dependencies = [
+ "critical-section",
+ "linked_list_allocator",
+]
+
+[[package]]
 name = "embedded-hal"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -607,7 +617,7 @@ dependencies = [
  "atomic-polyfill 0.1.11",
  "hash32",
  "rustc_version 0.4.0",
- "spin",
+ "spin 0.9.8",
  "stable_deref_trait",
 ]
 
@@ -622,6 +632,15 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+dependencies = [
+ "spin 0.5.2",
+]
+
+[[package]]
+name = "linked_list_allocator"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9afa463f5405ee81cdb9cc2baf37e08ec7e4c8209442b5d72c04cfb2cd6e6286"
 
 [[package]]
 name = "lock_api"
@@ -875,9 +894,11 @@ dependencies = [
  "embassy-nrf",
  "embassy-sync 0.1.0",
  "embassy-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embedded-alloc",
  "fixed",
  "futures",
  "heapless",
+ "lazy_static",
  "nrf-softdevice",
  "nrf-softdevice-s140",
  "panic-probe",
@@ -890,6 +911,12 @@ name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
+
+[[package]]
+name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
