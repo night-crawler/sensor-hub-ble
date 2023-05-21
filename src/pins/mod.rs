@@ -1,10 +1,8 @@
-use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Level, Output, OutputDrive};
 use embassy_nrf::interrupt::Priority;
-use embassy_nrf::Peripherals;
-
-use smallvec::SmallVec;
+use embassy_nrf::saadc::Saadc;
 use embassy_time::{Duration, Timer};
+use smallvec::SmallVec;
 
 #[derive(Default)]
 pub(crate) struct OutPinWrapper {
@@ -53,6 +51,8 @@ impl OutPinWrapper {
 
 
 pub(crate) struct DeviceManager {
+    /// https://files.seeedstudio.com/wiki/XIAO-BLE/pinout2.png
+    pub(crate) defined_pins: OutPinWrapper,
     pub(crate) pin_group1: OutPinWrapper,
     pub(crate) pin_group2: OutPinWrapper,
     pub(crate) pin_group3: OutPinWrapper,
@@ -67,13 +67,24 @@ impl DeviceManager {
         config.time_interrupt_priority = Priority::P2;
         let board = embassy_nrf::init(config);
 
+        // let q = Saadc::new(board.P0_05);
+
+        let mut defined_pins = OutPinWrapper::default();
+        defined_pins.register(board.P0_02);  // A0 / D0
+        defined_pins.register(board.P0_03);  // A1 / D1
+        defined_pins.register(board.P0_28);  // A2 / D2
+        defined_pins.register(board.P0_29);  // A3 / D3
+        defined_pins.register(board.P0_04);  // A4 / D4 / SDA
+        // defined_pins.register(board.P0_05);  // A5 / D5 / SCL
+        defined_pins.register(board.P1_11);  // D6 / UART TX
+        defined_pins.register(board.P1_12);  // D7 / UART RX
+        defined_pins.register(board.P1_13);  // D8 / SCK
+        defined_pins.register(board.P1_14);  // D9 / MISO
+        defined_pins.register(board.P1_15);  // D10 / MOSI
+
         let mut pin_group1 = OutPinWrapper::default();
         pin_group1.register(board.P0_00);
         pin_group1.register(board.P0_01);
-        pin_group1.register(board.P0_02);
-        pin_group1.register(board.P0_03);
-        pin_group1.register(board.P0_04);
-        pin_group1.register(board.P0_05);
         pin_group1.register(board.P0_06);
         pin_group1.register(board.P0_07);
         pin_group1.register(board.P0_08);
@@ -98,8 +109,6 @@ impl DeviceManager {
         pin_group2.register(board.P0_25);
         pin_group2.register(board.P0_26);
         pin_group2.register(board.P0_27);
-        pin_group2.register(board.P0_28);
-        pin_group2.register(board.P0_29);
         pin_group2.register(board.P0_30);
         pin_group2.register(board.P0_31);
 
@@ -115,14 +124,9 @@ impl DeviceManager {
         pin_group3.register(board.P1_08);
         pin_group3.register(board.P1_09);
         pin_group3.register(board.P1_10);
-        pin_group3.register(board.P1_11);
-        pin_group3.register(board.P1_12);
-        pin_group3.register(board.P1_13);
-        pin_group3.register(board.P1_14);
-        pin_group3.register(board.P1_15);
-
 
         Self {
+            defined_pins,
             pin_group1,
             pin_group2,
             pin_group3,

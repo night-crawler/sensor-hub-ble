@@ -50,16 +50,17 @@ async fn blink_task(pw: &'static mut DeviceManager) -> ! {
     Timer::after(Duration::from_millis(5)).await;
 
     loop {
-        let f1 = pw.pin_group1.sweep(1);
-        let f2 = pw.pin_group2.sweep(2);
-        let f3 = pw.pin_group3.sweep(3);
-
-        join3(f1, f2, f3).await;
+        pw.defined_pins.sweep(1).await;
+        // let f1 = pw.pin_group1.sweep(1);
+        // let f2 = pw.pin_group2.sweep(2);
+        // let f3 = pw.pin_group3.sweep(3);
+        //
+        // join3(f1, f2, f3).await;
     }
 }
 
-#[nrf_softdevice::gatt_service(uuid = "180f")]
-struct BatteryService {
+#[nrf_softdevice::gatt_service(uuid = "180A")]
+struct DeviceInformationService {
     #[characteristic(uuid = "2a19", read, notify)]
     battery_level: u8,
 }
@@ -72,7 +73,7 @@ struct FooService {
 
 #[nrf_softdevice::gatt_server]
 struct Server {
-    bas: BatteryService,
+    bas: DeviceInformationService,
     foo: FooService,
 }
 
@@ -157,7 +158,7 @@ async fn main(spawner: Spawner) {
         // proc macro when applied to the Server struct above
         let e = gatt_server::run(&conn, &server, |e| match e {
             ServerEvent::Bas(e) => match e {
-                BatteryServiceEvent::BatteryLevelCccdWrite { notifications } => {
+                DeviceInformationServiceEvent::BatteryLevelCccdWrite { notifications } => {
                     info!("battery notifications: {}", notifications)
                 }
             },
