@@ -295,7 +295,7 @@ dependencies = [
  "critical-section",
  "defmt",
  "embassy-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embassy-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-time",
  "futures-util",
  "static_cell",
 ]
@@ -343,7 +343,7 @@ dependencies = [
  "embassy-executor 0.2.0",
  "embassy-hal-common",
  "embassy-sync 0.2.0",
- "embassy-time 0.1.1",
+ "embassy-time",
  "embassy-usb-driver",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0-alpha.10",
@@ -385,20 +385,6 @@ dependencies = [
 [[package]]
 name = "embassy-time"
 version = "0.1.1"
-dependencies = [
- "atomic-polyfill 1.0.2",
- "cfg-if",
- "critical-section",
- "embedded-hal 0.2.7",
- "futures-util",
- "heapless",
-]
-
-[[package]]
-name = "embassy-time"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd403e218939bba4a1fe4b58c6f81bf0818852bdd824147f95e6dc4ff4166ac4"
 dependencies = [
  "atomic-polyfill 1.0.2",
  "cfg-if",
@@ -886,7 +872,7 @@ dependencies = [
  "embassy-executor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "embassy-nrf",
  "embassy-sync 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embassy-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-time",
  "embedded-alloc",
  "fixed",
  "futures",
@@ -897,6 +883,7 @@ dependencies = [
  "panic-probe",
  "smallvec",
  "static_cell",
+ "thiserror-no-std",
 ]
 
 [[package]]
@@ -981,6 +968,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.15",
+]
+
+[[package]]
+name = "thiserror-impl-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "thiserror-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
+dependencies = [
+ "thiserror-impl-no-std",
 ]
 
 [[package]]

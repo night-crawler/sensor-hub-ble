@@ -49,8 +49,7 @@ async fn main(spawner: Spawner) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    let manager = DeviceManager::new(spawner).await;
-    // manager.sp().await;
+    let _ = DeviceManager::new(spawner).await.unwrap();
 
     info!("Hello World!");
 
