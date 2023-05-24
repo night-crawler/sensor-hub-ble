@@ -143,6 +143,10 @@ impl LedStateAnimation {
         let _ = CHANNEL.try_send(LedStateAnimation::Sweep(mask, on_time, delay));
     }
 
+    pub fn sweep_long(leds: &[LedState]) {
+        Self::sweep(leds, LONG, LONG);
+    }
+
     pub fn sweep_indices(indices: u16, on_time: Duration, delay: Duration) {
         let _ = CHANNEL.try_send(LedStateAnimation::Sweep(indices, on_time, delay));
     }
@@ -153,12 +157,10 @@ impl LedStateAnimation {
     }
 
     pub fn blink_short(leds: &[LedState]) {
-        let mask = Self::led_states_to_mask(leds);
-        let _ = CHANNEL.try_send(LedStateAnimation::Blink(mask, SHORT, SHORT));
+        Self::blink(leds, SHORT, SHORT);
     }
     pub fn blink_long(leds: &[LedState]) {
-        let mask = Self::led_states_to_mask(leds);
-        let _ = CHANNEL.try_send(LedStateAnimation::Blink(mask, LONG, LONG));
+        Self::blink(leds, LONG, LONG);
     }
 
     fn led_states_to_mask(leds: &[LedState]) -> u16 {
