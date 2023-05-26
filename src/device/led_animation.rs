@@ -147,6 +147,10 @@ impl LedStateAnimation {
         Self::sweep(leds, LONG, LONG);
     }
 
+    pub fn sweep_short(leds: &[LedState]) {
+        Self::sweep(leds, SHORT, SHORT);
+    }
+
     pub fn sweep_indices(indices: u16, on_time: Duration, delay: Duration) {
         let _ = CHANNEL.try_send(LedStateAnimation::Sweep(indices, on_time, delay));
     }

@@ -14,8 +14,32 @@ pub(crate) struct DeviceInformationService {
 
 #[nrf_softdevice::gatt_service(uuid = "5c853275-723b-4754-a329-969d8bc8121d")]
 pub(crate) struct AdcService {
-    #[characteristic(uuid = "2B18", read, notify, indicate)]
-    pub(crate) voltage1: i32,
+    #[characteristic(uuid = "00002b18-0000-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage0: u16,
+
+    #[characteristic(uuid = "00002b18-0001-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage1: u16,
+
+    #[characteristic(uuid = "00002b18-0002-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage2: u16,
+
+    #[characteristic(uuid = "00002b18-0003-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage3: u16,
+
+    #[characteristic(uuid = "00002b18-0004-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage4: u16,
+
+    #[characteristic(uuid = "00002b18-0005-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage5: u16,
+
+    #[characteristic(uuid = "A0E4D2BA-0000-8000-0000-00805f9b34fb", read, notify)]
+    pub(crate) samples: u16,
+
+    #[characteristic(uuid = "A0E4D2BA-0001-8000-0000-00805f9b34fb", read, notify)]
+    pub(crate) elapsed: u64,
+
+    #[characteristic(uuid = "A0E4D2BA-0002-8000-0000-00805f9b34fb", read, write, notify)]
+    pub(crate) timeout: u32,
 }
 
 #[nrf_softdevice::gatt_server]

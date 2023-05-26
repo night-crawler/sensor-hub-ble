@@ -43,6 +43,8 @@ smallvec = { version = "1", default-features = false }
 embedded-alloc = "0.5"
 lazy_static = { version = "1.4", default-features = false, features = ["spin_no_std"] }
 thiserror-no-std = "2"
+num-traits = { version = "0.2.15", default-features = false }
+paste = { version = "1", default-features = false }
 
 [[bin]]
 name = "ble_bas_peripheral"

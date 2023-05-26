@@ -734,9 +734,15 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa6fa5645ef5a760cd340eaa92af9c1ce131c8c09e7f8926d8a24b59d26652b9"
 dependencies = [
- "cortex-m",
- "defmt",
+    "cortex-m",
+    "defmt",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "pin-project-lite"
@@ -870,20 +876,22 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embassy-executor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embassy-nrf",
- "embassy-sync 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embassy-time",
- "embedded-alloc",
- "fixed",
- "futures",
- "heapless",
- "lazy_static",
- "nrf-softdevice",
- "nrf-softdevice-s140",
- "panic-probe",
- "smallvec",
- "static_cell",
- "thiserror-no-std",
+    "embassy-nrf",
+    "embassy-sync 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+    "embassy-time",
+    "embedded-alloc",
+    "fixed",
+    "futures",
+    "heapless",
+    "lazy_static",
+    "nrf-softdevice",
+    "nrf-softdevice-s140",
+    "num-traits",
+    "panic-probe",
+    "paste",
+    "smallvec",
+    "static_cell",
+    "thiserror-no-std",
 ]
 
 [[package]]

@@ -5,26 +5,25 @@
 
 extern crate alloc;
 
-use defmt::{*, info};
+use core::sync::atomic::Ordering;
+
+use defmt::{*};
 #[allow(unused)]
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
-use embassy_nrf::interrupt::Interrupt;
-use embassy_nrf::saadc::{CallbackResult, Saadc};
-use embassy_nrf::timer::Frequency;
-use embassy_time::{Duration, Timer};
 use embedded_alloc::Heap;
 use futures::future::{Either, select};
 use futures::pin_mut;
-use nrf_softdevice::ble::{Connection, gatt_server, peripheral};
+use nrf_softdevice::ble::{gatt_server, peripheral};
 use nrf_softdevice::Softdevice;
 #[allow(unused)]
 use panic_probe as _;
 
 use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, DeviceInformationServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
+use crate::common::device::adc::{ADC_TIMEOUT, notify_adc_value};
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::led_animation::{LedState, LedStateAnimation};
 
@@ -69,8 +68,8 @@ async fn main(spawner: Spawner) {
         LedStateAnimation::blink_long(&[LedState::Purple]);
 
         let _ = server.dis.battery_level_notify(&conn, &50);
-        let _ = server.dis.temp_notify(&conn, &-32);
-        let _ = server.dis.debug_notify(&conn, b"Sample\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
+        let _ = server.dis.temp_set(&-32);
+        let _ = server.dis.debug_set(b"Sample\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
 
         let adc_fut = notify_adc_value(&mut device_manager.saadc, &server, &conn);
 
@@ -87,11 +86,17 @@ async fn main(spawner: Spawner) {
                 DeviceInformationServiceEvent::DebugCccdWrite { .. } => {}
             },
             BleServerEvent::Adc(e) => match e {
-                AdcServiceEvent::Voltage1CccdWrite {
-                    indications,
-                    notifications,
-                } => {
-                    info!("foo indications: {}, notifications: {}", indications, notifications)
+                AdcServiceEvent::Voltage0CccdWrite { .. } => {}
+                AdcServiceEvent::Voltage1CccdWrite { .. } => {}
+                AdcServiceEvent::Voltage2CccdWrite { .. } => {}
+                AdcServiceEvent::Voltage3CccdWrite { .. } => {}
+                AdcServiceEvent::Voltage4CccdWrite { .. } => {}
+                AdcServiceEvent::Voltage5CccdWrite { .. } => {}
+                AdcServiceEvent::SamplesCccdWrite { .. } => {}
+                AdcServiceEvent::ElapsedCccdWrite { .. } => {}
+                AdcServiceEvent::TimeoutCccdWrite { .. } => {}
+                AdcServiceEvent::TimeoutWrite(timeout) => {
+                    ADC_TIMEOUT.store(timeout, Ordering::SeqCst);
                 }
             },
         });
@@ -101,66 +106,11 @@ async fn main(spawner: Spawner) {
 
         match select(adc_fut, server_fut).await {
             Either::Left((_, _)) => {
-                LedStateAnimation::sweep_long(&[LedState::Red, LedState::White]);
+                LedStateAnimation::sweep_long(&[LedState::Red, LedState::Green]);
             }
             Either::Right((_, _)) => {
                 LedStateAnimation::sweep_long(&[LedState::Purple, LedState::Cyan]);
             }
         };
-    }
-}
-
-
-async fn notify_adc_value<'a>(saadc: &'a mut Saadc<'_, 1>, server: &'a BleServer, connection: &'a Connection) {
-    loop {
-        // let mut buf = [0i16; 1];
-        // saadc.sample(&mut buf).await;
-        //
-        // // We only sampled one ADC channel.
-        // let adc_raw_value = buf[0].unsigned_abs();
-        //
-        // // Try and notify the connected client of the new ADC value.
-        // match server.adc.voltage1_notify(connection, &(adc_raw_value as i32)) {
-        //     Ok(_) => {},
-        //     Err(_) => unwrap!(server.adc.voltage1_set(&(adc_raw_value as i32))),
-        // };
-        //
-        // // Sleep for one second.
-        // Timer::after(Duration::from_secs(1)).await
-
-        let mut bufs = [[[0; 1]; 500]; 2];
-
-        let mut c = 0;
-        let mut accum: u64 = 0;
-
-        let mut t0 = unsafe { embassy_nrf::peripherals::TIMER2::steal() };
-        let mut ppi0 = unsafe { embassy_nrf::peripherals::PPI_CH10::steal() };
-        let mut ppi1 = unsafe { embassy_nrf::peripherals::PPI_CH11::steal() };
-
-        saadc
-            .run_task_sampler(
-                &mut t0,
-                &mut ppi0,
-                &mut ppi1,
-                Frequency::F16MHz,
-                1000, // We want to sample at 1KHz
-                &mut bufs,
-                move |buf| {
-                    for b in buf {
-                        accum += b[0] as u64;
-                    }
-                    c += buf.len();
-
-                    if c > 1000 {
-                        accum /= c as u64;
-                        let _ = server.adc.voltage1_notify(connection, &(accum as i32));
-                        c = 0;
-                        accum = 0;
-                        return CallbackResult::Stop;
-                    }
-                    CallbackResult::Continue
-                },
-            )
-            .await;
     }
 }
