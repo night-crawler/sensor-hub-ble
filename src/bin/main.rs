@@ -13,19 +13,21 @@ use defmt_rtt as _;
 use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
+use embassy_time::{Duration, Timer};
 use embedded_alloc::Heap;
 use futures::future::{Either, select};
 use futures::pin_mut;
-use nrf_softdevice::ble::{gatt_server, peripheral};
-use nrf_softdevice::Softdevice;
+use nrf_softdevice::{Softdevice, temperature_celsius};
+use nrf_softdevice::ble::{Connection, gatt_server, peripheral};
 #[allow(unused)]
 use panic_probe as _;
 
+use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, DeviceInformationServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
 use crate::common::device::adc::{ADC_TIMEOUT, notify_adc_value};
 use crate::common::device::device_manager::DeviceManager;
-use crate::common::device::led_animation::{LedState, LedStateAnimation};
+use crate::common::device::led_animation::{LED, LedState, LedStateAnimation};
 
 #[path = "../common.rs"]
 mod common;
@@ -51,10 +53,16 @@ async fn main(spawner: Spawner) {
     }
 
     let mut device_manager = DeviceManager::new(spawner).await.unwrap();
+    LED.lock().await.blink_short(LedState::White).await;
 
-    let config = prepare_softdevice_config();
-    let sd = Softdevice::enable(&config);
+    let sd_config = prepare_softdevice_config();
+    LED.lock().await.blink_short(LedState::White).await;
+
+    let sd = Softdevice::enable(&sd_config);
+    LED.lock().await.blink_short(LedState::White).await;
+
     let server = unwrap!(BleServer::new(sd));
+    LED.lock().await.blink_short(LedState::White).await;
 
     unwrap!(spawner.spawn(softdevice_task(sd)));
 
@@ -66,11 +74,14 @@ async fn main(spawner: Spawner) {
         let conn = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
 
         LedStateAnimation::blink_long(&[LedState::Purple]);
+        Timer::after(Duration::from_millis(1000)).await;
 
-        let _ = server.dis.battery_level_notify(&conn, &50);
-        let _ = server.dis.temp_set(&-32);
+        // let init_temp = device_manager.temp.read().await.to_num::<f32>().as_temp();
+        let _ = server.dis.battery_level_set(&50);
+        // let _ = server.dis.temp_set(&init_temp);
         let _ = server.dis.debug_set(b"Sample\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
 
+        let temp_fut = notify_nrf_temp_value(sd, &server, &conn);
         let adc_fut = notify_adc_value(&mut device_manager.saadc, &server, &conn);
 
         let server_fut = gatt_server::run(&conn, &server, |e| match e {
@@ -101,16 +112,56 @@ async fn main(spawner: Spawner) {
             },
         });
 
-        pin_mut!(adc_fut);
-        pin_mut!(server_fut);
+        pin_mut!(adc_fut, server_fut, temp_fut);
 
-        match select(adc_fut, server_fut).await {
-            Either::Left((_, _)) => {
-                LedStateAnimation::sweep_long(&[LedState::Red, LedState::Green]);
+
+        let adc_ser = select(adc_fut, server_fut);
+        pin_mut!(adc_ser);
+
+        match select(adc_ser, temp_fut).await {
+            Either::Left((adc_ser, _)) => {
+                match adc_ser {
+                    Either::Left((_, _)) => {
+                        LedStateAnimation::sweep_long(&[LedState::Red, LedState::Green]);
+                    }
+                    Either::Right((_, _)) => {
+                        LedStateAnimation::sweep_long(&[LedState::Purple, LedState::Cyan]);
+                    }
+                }
             }
             Either::Right((_, _)) => {
-                LedStateAnimation::sweep_long(&[LedState::Purple, LedState::Cyan]);
+                LedStateAnimation::sweep_long(&[LedState::Green, LedState::Yellow]);
+            }
+        }
+
+        // match select(adc_fut, server_fut).await {
+        //     Either::Left((_, _)) => {
+        //         LedStateAnimation::sweep_long(&[LedState::Red, LedState::Green]);
+        //     }
+        //     Either::Right((_, _)) => {
+        //         LedStateAnimation::sweep_long(&[LedState::Purple, LedState::Cyan]);
+        //     }
+        // };
+    }
+}
+
+async fn notify_nrf_temp_value<'a>(sd: &Softdevice, server: &'a BleServer, connection: &'a Connection) {
+    loop {
+        let value = match temperature_celsius(sd) {
+            Ok(value) => {
+                value.to_num::<f32>().as_temp()
+            }
+            Err(_) => {
+                LedStateAnimation::blink_long(&[LedState::Red]);
+                continue;
             }
         };
+        match server.dis.temp_notify(connection, &value) {
+            Ok(_) => {}
+            Err(_) => {
+                let _ = server.dis.temp_set(&value);
+            }
+        }
+        Timer::after(Duration::from_millis(ADC_TIMEOUT.load(Ordering::Relaxed) as u64)).await;
     }
 }

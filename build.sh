@@ -2,7 +2,7 @@
 set -e
 
 #cargo clean
-cargo objcopy --release --bin ble_bas_peripheral -- -O ihex ./target/blink.hex
+cargo objcopy --release --bin main -- -O ihex ./target/blink.hex
 
 adafruit-nrfutil \
   dfu genpkg \

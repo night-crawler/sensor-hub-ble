@@ -47,7 +47,11 @@ num-traits = { version = "0.2.15", default-features = false }
 paste = { version = "1", default-features = false }
 
 [[bin]]
-name = "ble_bas_peripheral"
+name = "main"
+required-features = ["ble-gatt-server"]
+
+[[bin]]
+name = "experiments"
 required-features = ["ble-gatt-server"]
 
 

@@ -6,7 +6,7 @@ use embassy_time::{Duration, Instant, Timer};
 use nrf_softdevice::ble::Connection;
 use paste::paste;
 
-use crate::common::ble::conv::BleScalarRepr;
+use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::{AdcService, BleServer};
 use crate::impl_set_many;
 
@@ -81,10 +81,9 @@ fn compute_voltages<const N: usize>(adc_readings: &[f32; N], reference_voltage: 
 }
 
 fn serialize_voltages<const N: usize>(raw_values: [f32; N]) -> [u16; N] {
-    // Represented values: M = 1, d = 0, b = -6
     let mut ble_repr_values = [0u16; N];
     ble_repr_values.iter_mut().zip(raw_values).for_each(|(ble, raw)| {
-        *ble = raw.ble_serialize(1, 0, -6) as u16;
+        *ble = raw.as_voltage();
     });
     ble_repr_values
 }

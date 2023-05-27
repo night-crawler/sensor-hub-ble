@@ -8,7 +8,7 @@ use embassy_time::{Duration, Timer};
 use lazy_static::lazy_static;
 
 static CHANNEL: Channel<ThreadModeRawMutex, LedStateAnimation, 32> = Channel::new();
-static SHORT: Duration = Duration::from_millis(50);
+static SHORT: Duration = Duration::from_millis(250);
 static LONG: Duration = Duration::from_millis(1000);
 
 lazy_static! {
@@ -126,6 +126,13 @@ impl LedManager {
         Timer::after(on).await;
         self.set_state(LedState::Off);
         Timer::after(off).await;
+    }
+
+    pub async fn blink_short(&mut self, state: LedState) {
+        self.set_state(state);
+        Timer::after(SHORT).await;
+        self.set_state(LedState::Off);
+        Timer::after(SHORT).await;
     }
 }
 
