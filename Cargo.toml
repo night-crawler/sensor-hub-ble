@@ -34,7 +34,7 @@ nrf-softdevice = { version = "0.1.0", path = "../nrf-softdevice/nrf-softdevice",
 nrf-softdevice-s140 = { version = "0.1.1", path = "../nrf-softdevice/nrf-softdevice-s140" }
 #embedded-storage = "0.3.0"
 #embedded-storage-async = "0.4.0"
-futures = { version = "0.3.5", default-features = false }
+futures = { version = "0.3.5", default-features = false, features = ["async-await"] }
 fixed = "1.2.0"
 heapless = "0.7"
 atomic-pool = "1.0.0"
@@ -48,10 +48,6 @@ paste = { version = "1", default-features = false }
 
 [[bin]]
 name = "main"
-required-features = ["ble-gatt-server"]
-
-[[bin]]
-name = "experiments"
 required-features = ["ble-gatt-server"]
 
 

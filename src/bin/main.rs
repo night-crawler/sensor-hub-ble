@@ -7,27 +7,30 @@ extern crate alloc;
 
 use core::sync::atomic::Ordering;
 
-use defmt::{*};
+use defmt::unwrap;
 #[allow(unused)]
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
+use embassy_nrf::peripherals::TWISPI0;
 use embassy_time::{Duration, Timer};
 use embedded_alloc::Heap;
-use futures::future::{Either, select};
-use futures::pin_mut;
-use nrf_softdevice::{Softdevice, temperature_celsius};
-use nrf_softdevice::ble::{Connection, gatt_server, peripheral};
+use futures::{FutureExt, pin_mut};
+use futures::select_biased;
+use nrf_softdevice::ble::{gatt_server, peripheral};
+use nrf_softdevice::Softdevice;
 #[allow(unused)]
 use panic_probe as _;
 
-use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, DeviceInformationServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
 use crate::common::device::adc::{ADC_TIMEOUT, notify_adc_value};
-use crate::common::device::device_manager::DeviceManager;
+use crate::common::device::ble_debugger::ble_debug_notify_task;
+use crate::common::device::device_manager::{DeviceManager, I2CPins};
+use crate::common::device::i2c::read_i2c0;
 use crate::common::device::led_animation::{LED, LedState, LedStateAnimation};
+use crate::common::device::nrf_temp::notify_nrf_temp;
 
 #[path = "../common.rs"]
 mod common;
@@ -76,13 +79,14 @@ async fn main(spawner: Spawner) {
         LedStateAnimation::blink_long(&[LedState::Purple]);
         Timer::after(Duration::from_millis(1000)).await;
 
-        // let init_temp = device_manager.temp.read().await.to_num::<f32>().as_temp();
         let _ = server.dis.battery_level_set(&50);
-        // let _ = server.dis.temp_set(&init_temp);
-        let _ = server.dis.debug_set(b"Sample\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
 
-        let temp_fut = notify_nrf_temp_value(sd, &server, &conn);
+        let twim0: &mut I2CPins<TWISPI0> = &mut device_manager.i2c0;
+
+        let ble_debug_fut = ble_debug_notify_task(&server, &conn);
+        let temp_fut = notify_nrf_temp(sd, &server, &conn);
         let adc_fut = notify_adc_value(&mut device_manager.saadc, &server, &conn);
+        let i2c0_fut = read_i2c0(twim0, &server, &conn);
 
         let server_fut = gatt_server::run(&conn, &server, |e| match e {
             BleServerEvent::Dis(e) => match e {
@@ -112,56 +116,28 @@ async fn main(spawner: Spawner) {
             },
         });
 
-        pin_mut!(adc_fut, server_fut, temp_fut);
 
+        pin_mut!(adc_fut, server_fut, temp_fut, i2c0_fut);
 
-        let adc_ser = select(adc_fut, server_fut);
-        pin_mut!(adc_ser);
-
-        match select(adc_ser, temp_fut).await {
-            Either::Left((adc_ser, _)) => {
-                match adc_ser {
-                    Either::Left((_, _)) => {
-                        LedStateAnimation::sweep_long(&[LedState::Red, LedState::Green]);
-                    }
-                    Either::Right((_, _)) => {
-                        LedStateAnimation::sweep_long(&[LedState::Purple, LedState::Cyan]);
-                    }
-                }
+        let return_state = select_biased! {
+            _ = server_fut.fuse() => {
+                &[LedState::Purple, LedState::Yellow, LedState::White]
             }
-            Either::Right((_, _)) => {
-                LedStateAnimation::sweep_long(&[LedState::Green, LedState::Yellow]);
+            _ = adc_fut.fuse() => {
+                &[LedState::Red, LedState::Green, LedState::Blue]
             }
-        }
-
-        // match select(adc_fut, server_fut).await {
-        //     Either::Left((_, _)) => {
-        //         LedStateAnimation::sweep_long(&[LedState::Red, LedState::Green]);
-        //     }
-        //     Either::Right((_, _)) => {
-        //         LedStateAnimation::sweep_long(&[LedState::Purple, LedState::Cyan]);
-        //     }
-        // };
-    }
-}
-
-async fn notify_nrf_temp_value<'a>(sd: &Softdevice, server: &'a BleServer, connection: &'a Connection) {
-    loop {
-        let value = match temperature_celsius(sd) {
-            Ok(value) => {
-                value.to_num::<f32>().as_temp()
+            _ = temp_fut.fuse() => {
+                &[LedState::White, LedState::Cyan, LedState::Purple]
             }
-            Err(_) => {
-                LedStateAnimation::blink_long(&[LedState::Red]);
-                continue;
+            _ = i2c0_fut.fuse() => {
+                &[LedState::Green, LedState::Red, LedState::Yellow]
+            }
+            _ = ble_debug_fut.fuse() => {
+                &[LedState::Cyan, LedState::Red, LedState::Yellow]
             }
         };
-        match server.dis.temp_notify(connection, &value) {
-            Ok(_) => {}
-            Err(_) => {
-                let _ = server.dis.temp_set(&value);
-            }
-        }
-        Timer::after(Duration::from_millis(ADC_TIMEOUT.load(Ordering::Relaxed) as u64)).await;
+
+        LedStateAnimation::sweep_long(return_state);
     }
 }
+

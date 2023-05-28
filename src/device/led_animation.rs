@@ -8,7 +8,7 @@ use embassy_time::{Duration, Timer};
 use lazy_static::lazy_static;
 
 static CHANNEL: Channel<ThreadModeRawMutex, LedStateAnimation, 32> = Channel::new();
-static SHORT: Duration = Duration::from_millis(250);
+static SHORT: Duration = Duration::from_millis(100);
 static LONG: Duration = Duration::from_millis(1000);
 
 lazy_static! {

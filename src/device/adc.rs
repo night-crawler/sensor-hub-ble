@@ -108,6 +108,7 @@ macro_rules! impl_set_many {
                         }
                     }
                 }
+
             )+
 
          }
