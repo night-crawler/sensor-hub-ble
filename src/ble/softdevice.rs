@@ -2,6 +2,8 @@ use core::mem;
 
 use nrf_softdevice::{Config, raw};
 
+use crate::common::device::config::NUM_CONNECTIONS;
+
 pub(crate) fn prepare_softdevice_config() -> Config {
     Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {
@@ -11,14 +13,14 @@ pub(crate) fn prepare_softdevice_config() -> Config {
             accuracy: raw::NRF_CLOCK_LF_ACCURACY_20_PPM as u8,
         }),
         conn_gap: Some(raw::ble_gap_conn_cfg_t {
-            conn_count: 3,
+            conn_count: NUM_CONNECTIONS as u8,
             event_length: 24,
         }),
         conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 256 }),
         gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t { attr_tab_size: 32768 }),
         gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
             adv_set_count: 1,
-            periph_role_count: 3,
+            periph_role_count: NUM_CONNECTIONS as u8,
             central_role_count: 0,
             central_sec_count: 0,
             _bitfield_1: raw::ble_gap_cfg_role_count_t::new_bitfield_1(0),

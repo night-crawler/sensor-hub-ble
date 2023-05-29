@@ -7,9 +7,11 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use lazy_static::lazy_static;
 
-static CHANNEL: Channel<ThreadModeRawMutex, LedStateAnimation, 32> = Channel::new();
-static SHORT: Duration = Duration::from_millis(100);
-static LONG: Duration = Duration::from_millis(1000);
+use crate::common::device::config::{DURATION_LONG_MS, DURATION_SHORT_MS, LED_ANIMATION_QUEUE_LEN};
+
+static CHANNEL: Channel<ThreadModeRawMutex, LedStateAnimation, LED_ANIMATION_QUEUE_LEN> = Channel::new();
+static SHORT: Duration = Duration::from_millis(DURATION_SHORT_MS);
+static LONG: Duration = Duration::from_millis(DURATION_LONG_MS);
 
 lazy_static! {
     pub static ref LED: Mutex<ThreadModeRawMutex, LedManager> = {

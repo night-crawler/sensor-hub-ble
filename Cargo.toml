@@ -19,12 +19,15 @@ ble-sec = ["nrf-softdevice/ble-sec"]
 [patch.crates-io]
 embassy-nrf = { path = "../embassy/embassy-nrf" }
 embassy-time = { path = "../embassy/embassy-time" }
+embassy-embedded-hal = { path = "../embassy/embassy-embedded-hal" }
+embassy-sync = { path = "../embassy/embassy-sync" }
 
 [dependencies]
 embassy-executor = { version = "0.2.0", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "nightly", "defmt", "integrated-timers"] }
 embassy-time = { version = "0.1.0", features = ["nightly", "defmt", "defmt-timestamp-uptime"] }
 embassy-sync = { version = "0.2.0" }
 embassy-nrf = { version = "0.1.0", features = ["nightly", "defmt", "nrf52840", "gpiote", "time-driver-rtc1"] }
+embassy-embedded-hal = { version = "0.1.0", features = ["nightly"] }
 cortex-m = "0.7.2"
 cortex-m-rt = "0.7.0"
 defmt = "0.3"

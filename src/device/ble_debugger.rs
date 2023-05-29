@@ -7,9 +7,10 @@ use embassy_sync::channel::Channel;
 use nrf_softdevice::ble::Connection;
 
 use crate::common::ble::services::BleServer;
+use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
 use crate::common::device::error::DeviceError;
 
-static CHANNEL: Channel<ThreadModeRawMutex, [u8; 64], 2> = Channel::new();
+static CHANNEL: Channel<ThreadModeRawMutex, [u8; BLE_DEBUG_ARRAY_LEN], BLE_DEBUG_QUEUE_LEN> = Channel::new();
 
 pub(crate) async fn ble_debug_notify_task<'a>(server: &'a BleServer, connection: &'a Connection) {
     loop {

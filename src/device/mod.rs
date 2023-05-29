@@ -7,3 +7,5 @@ pub(crate) mod nrf_temp;
 pub(crate) mod i2c;
 pub(crate) mod bme280;
 pub(crate) mod ble_debugger;
+pub(crate) mod config;
+pub(crate) mod ble_alloc;

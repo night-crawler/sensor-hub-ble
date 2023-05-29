@@ -2,6 +2,7 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(async_fn_in_trait)]
 
 extern crate alloc;
 
@@ -44,6 +45,9 @@ static HEAP: Heap = Heap::empty();
 async fn softdevice_task(sd: &'static Softdevice) -> ! {
     sd.run().await
 }
+
+
+// pub(crate) static CONNECTIONS =
 
 
 #[embassy_executor::main]

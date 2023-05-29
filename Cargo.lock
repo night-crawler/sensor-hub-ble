@@ -248,28 +248,29 @@ dependencies = [
 name = "embassy-cortex-m"
 version = "0.1.0"
 dependencies = [
- "atomic-polyfill 1.0.2",
- "cfg-if",
- "cortex-m",
- "critical-section",
- "embassy-executor 0.2.0",
- "embassy-hal-common",
- "embassy-macros 0.2.0",
- "embassy-sync 0.2.0",
+    "atomic-polyfill 1.0.2",
+    "cfg-if",
+    "cortex-m",
+    "critical-section",
+    "embassy-executor 0.2.0",
+    "embassy-hal-common",
+    "embassy-macros 0.2.0",
+    "embassy-sync",
 ]
 
 [[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
 dependencies = [
- "defmt",
- "embassy-sync 0.2.0",
- "embedded-hal 0.2.7",
- "embedded-hal 1.0.0-alpha.10",
- "embedded-hal-async",
- "embedded-storage",
- "embedded-storage-async",
- "nb 1.1.0",
+    "defmt",
+    "embassy-futures",
+    "embassy-sync",
+    "embedded-hal 0.2.7",
+    "embedded-hal 1.0.0-alpha.10",
+    "embedded-hal-async",
+    "embedded-storage",
+    "embedded-storage-async",
+    "nb 1.1.0",
 ]
 
 [[package]]
@@ -290,21 +291,25 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acebf176f4622fd87c7200b568ee32d5b435e3a4d58e39355ce0837b45139eca"
 dependencies = [
- "atomic-polyfill 1.0.2",
- "cortex-m",
- "critical-section",
- "defmt",
- "embassy-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embassy-time",
- "futures-util",
- "static_cell",
+    "atomic-polyfill 1.0.2",
+    "cortex-m",
+    "critical-section",
+    "defmt",
+    "embassy-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+    "embassy-time",
+    "futures-util",
+    "static_cell",
 ]
+
+[[package]]
+name = "embassy-futures"
+version = "0.1.0"
 
 [[package]]
 name = "embassy-hal-common"
 version = "0.1.0"
 dependencies = [
- "num-traits",
+    "num-traits",
 ]
 
 [[package]]
@@ -333,26 +338,26 @@ dependencies = [
 name = "embassy-nrf"
 version = "0.1.0"
 dependencies = [
- "cfg-if",
- "cortex-m",
- "cortex-m-rt",
- "critical-section",
- "defmt",
- "embassy-cortex-m",
- "embassy-embedded-hal",
- "embassy-executor 0.2.0",
- "embassy-hal-common",
- "embassy-sync 0.2.0",
- "embassy-time",
- "embassy-usb-driver",
- "embedded-hal 0.2.7",
- "embedded-hal 1.0.0-alpha.10",
- "embedded-hal-async",
- "embedded-io",
- "embedded-storage",
- "embedded-storage-async",
- "fixed",
- "futures",
+    "cfg-if",
+    "cortex-m",
+    "cortex-m-rt",
+    "critical-section",
+    "defmt",
+    "embassy-cortex-m",
+    "embassy-embedded-hal",
+    "embassy-executor 0.2.0",
+    "embassy-hal-common",
+    "embassy-sync",
+    "embassy-time",
+    "embassy-usb-driver",
+    "embedded-hal 0.2.7",
+    "embedded-hal 1.0.0-alpha.10",
+    "embedded-hal-async",
+    "embedded-io",
+    "embedded-storage",
+    "embedded-storage-async",
+    "fixed",
+    "futures",
  "nrf52840-pac",
  "rand_core",
 ]
@@ -364,19 +369,6 @@ dependencies = [
  "cfg-if",
  "critical-section",
  "defmt",
- "embedded-io",
- "futures-util",
- "heapless",
-]
-
-[[package]]
-name = "embassy-sync"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0dad296a6f70bfdc32ef52442a31f98c28e1608893c1cecc9b6f419bab005a0"
-dependencies = [
- "cfg-if",
- "critical-section",
  "embedded-io",
  "futures-util",
  "heapless",
@@ -668,20 +660,20 @@ checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
 name = "nrf-softdevice"
 version = "0.1.0"
 dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "critical-section",
- "defmt",
- "embassy-sync 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embedded-storage",
- "embedded-storage-async",
- "fixed",
- "futures",
- "heapless",
- "nrf-softdevice-macro",
- "nrf-softdevice-s140",
- "nrf52840-pac",
- "num_enum",
+    "cortex-m",
+    "cortex-m-rt",
+    "critical-section",
+    "defmt",
+    "embassy-sync",
+    "embedded-storage",
+    "embedded-storage-async",
+    "fixed",
+    "futures",
+    "heapless",
+    "nrf-softdevice-macro",
+    "nrf-softdevice-s140",
+    "nrf52840-pac",
+    "num_enum",
 ]
 
 [[package]]
@@ -887,9 +879,10 @@ dependencies = [
     "cortex-m-rt",
     "defmt",
     "defmt-rtt",
+    "embassy-embedded-hal",
     "embassy-executor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
     "embassy-nrf",
-    "embassy-sync 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+    "embassy-sync",
     "embassy-time",
     "embedded-alloc",
     "fixed",
