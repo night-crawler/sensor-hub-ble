@@ -358,8 +358,8 @@ dependencies = [
     "embedded-storage-async",
     "fixed",
     "futures",
- "nrf52840-pac",
- "rand_core",
+    "nrf52840-pac",
+    "rand_core",
 ]
 
 [[package]]

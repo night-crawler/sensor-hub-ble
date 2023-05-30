@@ -27,24 +27,3 @@ pub enum CustomI2CError {
 }
 
 
-/// BME280 errors
-#[derive(Error, Debug)]
-pub enum Bme280Error {
-    #[error("Failed to compensate a raw measurement")]
-    CompensationFailed,
-
-    #[error("I²C error")]
-    Bus(#[from] CustomI2CError),
-
-    #[error("Failed to parse sensor data")]
-    InvalidData,
-
-    #[error("No calibration data is available (probably forgot to call or check BME280::init for failure)")]
-    NoCalibrationData,
-
-    #[error("Chip ID doesn't match expected value")]
-    UnsupportedChip,
-
-    #[error("Delay error")]
-    Delay,
-}

@@ -24,7 +24,7 @@ use nrf_softdevice::Softdevice;
 #[allow(unused)]
 use panic_probe as _;
 
-use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, DeviceInformationServiceEvent};
+use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, Bme280ServiceEvent, DeviceInformationServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
 use crate::common::device::adc::{ADC_TIMEOUT, notify_adc_value};
 use crate::common::device::ble_debugger::ble_debug_notify_task;
@@ -93,7 +93,7 @@ async fn main(spawner: Spawner) {
         let i2c0_fut = read_i2c0(twim0, &server, &conn);
 
         let server_fut = gatt_server::run(&conn, &server, |e| match e {
-            BleServerEvent::Dis(e) => match e {
+            BleServerEvent::Dis(event) => match event {
                 DeviceInformationServiceEvent::BatteryLevelCccdWrite { notifications } => {
                     let state = if notifications { LedState::Green } else { LedState::Red };
                     LedStateAnimation::blink_short(&[state]);
@@ -104,7 +104,7 @@ async fn main(spawner: Spawner) {
                 }
                 DeviceInformationServiceEvent::DebugCccdWrite { .. } => {}
             },
-            BleServerEvent::Adc(e) => match e {
+            BleServerEvent::Adc(event) => match event {
                 AdcServiceEvent::Voltage0CccdWrite { .. } => {}
                 AdcServiceEvent::Voltage1CccdWrite { .. } => {}
                 AdcServiceEvent::Voltage2CccdWrite { .. } => {}
@@ -118,8 +118,14 @@ async fn main(spawner: Spawner) {
                     ADC_TIMEOUT.store(timeout, Ordering::SeqCst);
                 }
             },
+            BleServerEvent::Bme280(event) => match event {
+                Bme280ServiceEvent::TempCccdWrite { .. } => {}
+                Bme280ServiceEvent::HumidityCccdWrite { .. } => {}
+                Bme280ServiceEvent::PressureCccdWrite { .. } => {}
+                Bme280ServiceEvent::TimeoutWrite(_) => {}
+                Bme280ServiceEvent::TimeoutCccdWrite { .. } => {}
+            }
         });
-
 
         pin_mut!(adc_fut, server_fut, temp_fut, i2c0_fut);
 
