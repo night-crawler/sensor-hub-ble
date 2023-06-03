@@ -8,6 +8,7 @@
 //! - [Controller Datasheet SS1780](http://www.e-paper-display.com/download_detail/downloadsId=682.html)
 //!
 
+use defmt::info;
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::{InternalWiAdditions, RefreshLut, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
@@ -61,7 +62,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
             interface,
             sleep_mode: DeepSleepMode::Normal,
             background_color: DEFAULT_BACKGROUND_COLOR,
-            refresh: RefreshLut::Quick,
+            refresh: RefreshLut::Full,
         }
     }
 }
@@ -70,7 +71,7 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
 {
     async fn init(&mut self) -> Result<(), CustomSpimError> {
         // HW reset
-        self.interface.reset(10_000, 10_000);
+        self.interface.reset(10_000, 10_000).await;
 
         if self.refresh == RefreshLut::Quick {
             self.set_vcom_register((-9).vcom()).await?;
@@ -97,9 +98,13 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                 },
             ).await?;
         } else {
+            info!("Initializing display (refresh = full)");
             self.wait_until_idle().await?;
+            info!("Display is idle");
             self.command(Command::SwReset).await?;
+            info!("Reset done");
             self.wait_until_idle().await?;
+            info!("Display is idle");
 
             self.set_driver_output(
                 DriverOutput {
@@ -109,16 +114,24 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                     width: (HEIGHT - 1) as u16,
                 },
             ).await?;
+            info!("Setting driver output done");
 
             // These 2 are the reset values
             self.set_dummy_line_period(0x30).await?;
+            info!("Setting dummy line period done");
+
             self.set_gate_scan_start_position(0).await?;
+            info!("Setting gate scan start position done");
 
             self.set_data_entry_mode(DataEntryModeIncr::XIncrYIncr, DataEntryModeDir::XDir).await?;
+            info!("Setting data entry mode done");
 
             // Use simple X/Y auto increase
             self.set_ram_area(0, 0, WIDTH - 1, HEIGHT - 1).await?;
+            info!("Setting ram area done");
+
             self.set_ram_address_counters(0, 0).await?;
+            info!("Setting ram area done");
 
             self.set_border_waveform(
                 BorderWaveForm {
@@ -127,6 +140,7 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                     gs_trans: BorderWaveFormGs::Lut3,
                 },
             ).await?;
+            info!("Setting border waveform done");
 
             self.set_vcom_register((-21).vcom()).await?;
 
@@ -142,6 +156,7 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
             self.set_lut(Some(self.refresh)).await?;
         }
 
+        info!("Waiting for idle...");
         self.wait_until_idle().await?;
         Ok(())
     }
@@ -258,16 +273,22 @@ impl<I: DisplayInterface> WaveshareDisplay for Epd2in13<I>
     }
 
     async fn clear_frame(&mut self) -> Result<(), CustomSpimError> {
+        info!("Clear frame");
         let color = self.background_color.get_byte_value();
 
         self.set_ram_area(0, 0, WIDTH - 1, HEIGHT - 1).await?;
+        info!("Clear frame: set_ram_area succeeded");
+
         self.set_ram_address_counters(0, 0).await?;
+        info!("Clear frame: set_ram_area and set_ram_address_counters succeeded");
 
         self.command(Command::WriteRam).await?;
+        info!("Clear frame: WriteRam succeeded");
         self.interface.data_x_times(
             color,
             buffer_len(WIDTH as usize, HEIGHT as usize) as u32,
         ).await?;
+        info!("Clear frame: data_x_times succeeded");
 
         // Always keep the base buffer equals to current if not doing partial refresh.
         if self.refresh == RefreshLut::Full {

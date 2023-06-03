@@ -1,4 +1,4 @@
-use defmt::{error, info};
+use defmt::info;
 use embassy_nrf::gpio::{Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::peripherals::SPI3;
 use embassy_nrf::spim;
@@ -24,9 +24,11 @@ pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<S
         let result = draw_something(&mut spi_pins, &mut control_pins).await;
 
         match result {
-            Ok(_) => {}
+            Ok(_) => {
+                info!("Success!");
+            }
             Err(e) => {
-                error!("EPD Error: {:?}", e);
+                info!("EPD Error: {:?}", e);
             }
         }
 
@@ -34,7 +36,7 @@ pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<S
     }
 }
 
-async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdControlPins) -> Result<(), CustomSpimError>{
+async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdControlPins) -> Result<(), CustomSpimError> {
     let mut config = spim::Config::default();
     config.frequency = spi_pins.config.frequency;
     config.mode = spi_pins.config.mode;
@@ -48,11 +50,11 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
         config,
     );
 
-    let mut busy = Input::new(&mut control_pins.busy, Pull::Up);
-    let mut cs = Output::new(&mut control_pins.cs, Level::High, OutputDrive::Standard);
-    let mut dc = Output::new(&mut control_pins.dc, Level::Low, OutputDrive::Standard);
-    let mut rst = Output::new(&mut control_pins.rst, Level::Low, OutputDrive::Standard);
-    let mut controls = EpdControls::new(
+    let busy = Input::new(&mut control_pins.busy, Pull::Up);
+    let cs = Output::new(&mut control_pins.cs, Level::High, OutputDrive::Standard);
+    let dc = Output::new(&mut control_pins.dc, Level::Low, OutputDrive::Standard);
+    let rst = Output::new(&mut control_pins.rst, Level::Low, OutputDrive::Standard);
+    let controls = EpdControls::new(
         &mut spi,
         busy,
         cs,
@@ -65,13 +67,18 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     epd.init().await?;
     info!("Initialized EPD");
 
-    let buf_len = buffer_len(epd.width() as usize, epd.height() as usize);
-    let mut buf = [0u8; 4000];
-    for i in 0..buf_len {
-        buf[i] = (i % 255) as u8;
-    }
+    info!("Clearing frame");
+    epd.clear_frame().await?;
+    info!("Cleared frame");
 
-    epd.update_and_display_frame(&buf).await?;
+    // let buf_len = buffer_len(epd.width() as usize, epd.height() as usize);
+    // let mut buf = [0u8; 4000];
+    // for i in 0..buf_len {
+    //     buf[i] = 0;
+    // }
+    //
+    // epd.update_and_display_frame(&buf).await?;
+    // info!("Updated and displayed frame");
 
     Ok(())
 }

@@ -56,7 +56,7 @@ async fn main(spawner: Spawner) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    let mut device_manager = DeviceManager::new(spawner).await.unwrap();
+    let device_manager = DeviceManager::new(spawner).await.unwrap();
     LED.lock().await.blink_short(LedState::White).await;
 
     let sd_config = prepare_softdevice_config();

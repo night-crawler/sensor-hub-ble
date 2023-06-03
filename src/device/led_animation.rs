@@ -1,5 +1,4 @@
 use core::mem::transmute;
-use defmt::debug;
 
 use embassy_nrf::gpio::{AnyPin, Level, Output, OutputDrive};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
