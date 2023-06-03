@@ -30,6 +30,7 @@ pub(crate) async fn read_i2c0<'a>(i2c_pins: &mut I2CPins<TWISPI0>, server: &'a B
             &mut i2c_pins.scl,
             twim_config,
         );
+        // drop it later!
         let twim: Mutex<ThreadModeRawMutex, twim::Twim<TWISPI0>> = Mutex::new(twim);
 
         select_biased! {

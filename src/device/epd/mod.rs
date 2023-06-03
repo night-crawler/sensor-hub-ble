@@ -55,6 +55,17 @@ pub struct Epd2in13<I: DisplayInterface> {
     refresh: RefreshLut,
 }
 
+impl<I: DisplayInterface> Epd2in13<I> {
+    pub fn new(interface: I) -> Self {
+        Self {
+            interface,
+            sleep_mode: DeepSleepMode::Normal,
+            background_color: DEFAULT_BACKGROUND_COLOR,
+            refresh: RefreshLut::Quick,
+        }
+    }
+}
+
 impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
 {
     async fn init(&mut self) -> Result<(), CustomSpimError> {
@@ -280,11 +291,11 @@ impl<I: DisplayInterface> WaveshareDisplay for Epd2in13<I>
         &self.background_color
     }
 
-    async fn width(&self) -> u32 {
+    fn width(&self) -> u32 {
         WIDTH
     }
 
-    async fn height(&self) -> u32 {
+    fn height(&self) -> u32 {
         HEIGHT
     }
 
@@ -313,7 +324,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         &mut self,
         buffer: &[u8],
     ) -> Result<(), CustomSpimError> {
-        assert!(buffer_len(WIDTH as usize, HEIGHT as usize) == buffer.len());
+        assert_eq!(buffer_len(WIDTH as usize, HEIGHT as usize), buffer.len());
         self.set_ram_area(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_ram_address_counters(0, 0).await?;
 

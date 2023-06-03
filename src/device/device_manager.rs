@@ -1,7 +1,6 @@
 use core::mem;
-use core::mem::MaybeUninit;
 
-use defmt::{info, unwrap};
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_nrf::{bind_interrupts, interrupt, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
@@ -14,14 +13,9 @@ use embassy_nrf::twim::{self};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use heapless::{Arc, arc_pool};
 
 use crate::common::device::error::DeviceError;
 use crate::common::device::led_animation::{LED, led_animation_task, LedState, LedStateAnimation};
-use crate::common::device::out_pin_manager::OutPinManager;
-
-arc_pool!(P: Mutex<ThreadModeRawMutex, OutPinManager>);
-
 
 bind_interrupts!(pub(crate) struct Irqs {
     SAADC => saadc::InterruptHandler;
@@ -52,15 +46,15 @@ pub(crate) struct EpdControlPins {
     pub(crate) rst: AnyPin,
 }
 
+use rclite::Arc;
 
 pub(crate) struct DeviceManager {
-    pub(crate) pin_group1: Arc<P>,
     pub(crate) spawner: Spawner,
     pub(crate) saadc: Saadc<'static, 5>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
     // pub(crate) i2c1: I2CPins<TWISPI1>,
-    pub(crate) spi3: SpiTxPins<SPI3>,
-    pub(crate) epd_control_pins: EpdControlPins,
+    pub(crate) spi3: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI3>>>,
+    pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
 }
 
 fn prepare_nrf_peripherals() -> Peripherals {
@@ -165,29 +159,14 @@ impl DeviceManager {
         spawner.spawn(set_watchdog_task())?;
         info!("Successfully spawned LED and Watchdog tasks");
 
-        led.blink_short(LedState::Purple).await;
-
-        let mut pin_group1 = OutPinManager::default();
-        // pin_group1.register(board.P1_15);
-
-        led.blink_short(LedState::Purple).await;
-
-        static mut MEMORY: [u8; 1024] = [0; 1024];
-        led.blink_short(LedState::Purple).await;
-
-        let res = unsafe {
-            P::grow(&mut MEMORY)
-        };
-
         led.blink_short(LedState::Green).await;
 
         Ok(Self {
             // i2c0,
             // i2c1,
-            epd_control_pins,
-            spi3: spi_tx_pins,
+            epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
+            spi3: Arc::new(Mutex::new(spi_tx_pins)),
             spawner,
-            pin_group1: unwrap!(P::alloc(Mutex::new(pin_group1)).ok()),
             saadc,
         })
     }

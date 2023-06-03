@@ -22,6 +22,7 @@ use nrf_softdevice::ble::{gatt_server, peripheral};
 use nrf_softdevice::Softdevice;
 #[allow(unused)]
 use panic_probe as _;
+use rclite::Arc;
 
 use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, Bme280ServiceEvent, DeviceInformationServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
@@ -30,6 +31,7 @@ use crate::common::device::ble_debugger::ble_debug_notify_task;
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::led_animation::{LED, LedState, LedStateAnimation};
 use crate::common::device::nrf_temp::notify_nrf_temp;
+use crate::common::device::spi::epd_task;
 
 #[path = "../common.rs"]
 mod common;
@@ -43,9 +45,6 @@ static HEAP: Heap = Heap::empty();
 async fn softdevice_task(sd: &'static Softdevice) -> ! {
     sd.run().await
 }
-
-
-// pub(crate) static CONNECTIONS =
 
 
 #[embassy_executor::main]
@@ -69,6 +68,7 @@ async fn main(spawner: Spawner) {
     let server = unwrap!(BleServer::new(sd));
     LED.lock().await.blink_short(LedState::White).await;
 
+    unwrap!(spawner.spawn(epd_task(Arc::clone(&device_manager.spi3), Arc::clone(&device_manager.epd_control_pins))));
     unwrap!(spawner.spawn(softdevice_task(sd)));
 
     let (adv_data, scan_data) = prepare_adv_scan_data();

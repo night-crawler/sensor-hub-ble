@@ -11,3 +11,4 @@ pub(crate) mod config;
 pub(crate) mod ble_alloc;
 pub(crate) mod ext;
 pub(crate) mod epd;
+pub(crate) mod spi;

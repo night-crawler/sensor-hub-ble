@@ -30,6 +30,7 @@ pub enum CustomI2CError {
 }
 
 #[derive(Error, Debug)]
+#[derive(defmt::Format)]
 pub enum CustomSpimError {
     #[error("SPI Error")]
     SpimError(#[from] spim::Error),

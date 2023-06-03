@@ -102,10 +102,10 @@ pub trait WaveshareDisplay {
     async fn background_color(&self) -> &Self::DisplayColor;
 
     /// Get the width of the display
-    async fn width(&self) -> u32;
+    fn width(&self) -> u32;
 
     /// Get the height of the display
-    async fn height(&self) -> u32;
+    fn height(&self) -> u32;
 
     /// Transmit a full frame to the SRAM of the EPD
     async fn update_frame(&mut self, buffer: &[u8]) -> Result<(), CustomSpimError>;

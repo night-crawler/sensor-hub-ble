@@ -21,6 +21,6 @@ pub trait DisplayInterface {
         is_busy_low: bool,
         status_command: T,
     ) -> Result<(), CustomSpimError>;
-    async fn is_busy(&self, is_busy_low: bool) -> bool;
+    fn is_busy(&self, is_busy_low: bool) -> bool;
     async fn reset(&mut self, initial_delay: u32, duration: u32);
 }
