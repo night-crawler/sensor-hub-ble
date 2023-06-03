@@ -94,6 +94,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bit_field"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc827186963e592360843fb5ba4b973e145841266c1357f7180c43526f2e5b61"
+
+[[package]]
 name = "bitfield"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -104,6 +110,12 @@ name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+
+[[package]]
+name = "branches"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7958fb9748a08a6f46ef773e87c43997a844709bc293b4c3de48135debaf9d2a"
 
 [[package]]
 name = "bytemuck"
@@ -248,29 +260,29 @@ dependencies = [
 name = "embassy-cortex-m"
 version = "0.1.0"
 dependencies = [
-    "atomic-polyfill 1.0.2",
-    "cfg-if",
-    "cortex-m",
-    "critical-section",
-    "embassy-executor 0.2.0",
-    "embassy-hal-common",
-    "embassy-macros 0.2.0",
-    "embassy-sync",
+ "atomic-polyfill 1.0.2",
+ "cfg-if",
+ "cortex-m",
+ "critical-section",
+ "embassy-executor 0.2.0",
+ "embassy-hal-common",
+ "embassy-macros 0.2.0",
+ "embassy-sync",
 ]
 
 [[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
 dependencies = [
-    "defmt",
-    "embassy-futures",
-    "embassy-sync",
-    "embedded-hal 0.2.7",
-    "embedded-hal 1.0.0-alpha.10",
-    "embedded-hal-async",
-    "embedded-storage",
-    "embedded-storage-async",
-    "nb 1.1.0",
+ "defmt",
+ "embassy-futures",
+ "embassy-sync",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0-alpha.10",
+ "embedded-hal-async",
+ "embedded-storage",
+ "embedded-storage-async",
+ "nb 1.1.0",
 ]
 
 [[package]]
@@ -291,14 +303,14 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acebf176f4622fd87c7200b568ee32d5b435e3a4d58e39355ce0837b45139eca"
 dependencies = [
-    "atomic-polyfill 1.0.2",
-    "cortex-m",
-    "critical-section",
-    "defmt",
-    "embassy-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-    "embassy-time",
-    "futures-util",
-    "static_cell",
+ "atomic-polyfill 1.0.2",
+ "cortex-m",
+ "critical-section",
+ "defmt",
+ "embassy-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-time",
+ "futures-util",
+ "static_cell",
 ]
 
 [[package]]
@@ -309,7 +321,7 @@ version = "0.1.0"
 name = "embassy-hal-common"
 version = "0.1.0"
 dependencies = [
-    "num-traits",
+ "num-traits",
 ]
 
 [[package]]
@@ -338,28 +350,28 @@ dependencies = [
 name = "embassy-nrf"
 version = "0.1.0"
 dependencies = [
-    "cfg-if",
-    "cortex-m",
-    "cortex-m-rt",
-    "critical-section",
-    "defmt",
-    "embassy-cortex-m",
-    "embassy-embedded-hal",
-    "embassy-executor 0.2.0",
-    "embassy-hal-common",
-    "embassy-sync",
-    "embassy-time",
-    "embassy-usb-driver",
-    "embedded-hal 0.2.7",
-    "embedded-hal 1.0.0-alpha.10",
-    "embedded-hal-async",
-    "embedded-io",
-    "embedded-storage",
-    "embedded-storage-async",
-    "fixed",
-    "futures",
-    "nrf52840-pac",
-    "rand_core",
+ "cfg-if",
+ "cortex-m",
+ "cortex-m-rt",
+ "critical-section",
+ "defmt",
+ "embassy-cortex-m",
+ "embassy-embedded-hal",
+ "embassy-executor 0.2.0",
+ "embassy-hal-common",
+ "embassy-sync",
+ "embassy-time",
+ "embassy-usb-driver",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0-alpha.10",
+ "embedded-hal-async",
+ "embedded-io",
+ "embedded-storage",
+ "embedded-storage-async",
+ "fixed",
+ "futures",
+ "nrf52840-pac",
+ "rand_core",
 ]
 
 [[package]]
@@ -514,9 +526,9 @@ version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89ca545a94061b6365f2c7355b4b32bd20df3ff95f02da9329b34ccc3bd6ee72"
 dependencies = [
-    "proc-macro2",
-    "quote",
-    "syn 2.0.15",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
 ]
 
 [[package]]
@@ -537,12 +549,12 @@ version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26b01e40b772d54cf6c6d721c1d1abd0647a0106a12ecaa1c186273392a69533"
 dependencies = [
-    "futures-core",
-    "futures-macro",
-    "futures-sink",
-    "futures-task",
-    "pin-project-lite",
-    "pin-utils",
+ "futures-core",
+ "futures-macro",
+ "futures-sink",
+ "futures-task",
+ "pin-project-lite",
+ "pin-utils",
 ]
 
 [[package]]
@@ -660,20 +672,20 @@ checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
 name = "nrf-softdevice"
 version = "0.1.0"
 dependencies = [
-    "cortex-m",
-    "cortex-m-rt",
-    "critical-section",
-    "defmt",
-    "embassy-sync",
-    "embedded-storage",
-    "embedded-storage-async",
-    "fixed",
-    "futures",
-    "heapless",
-    "nrf-softdevice-macro",
-    "nrf-softdevice-s140",
-    "nrf52840-pac",
-    "num_enum",
+ "cortex-m",
+ "cortex-m-rt",
+ "critical-section",
+ "defmt",
+ "embassy-sync",
+ "embedded-storage",
+ "embedded-storage-async",
+ "fixed",
+ "futures",
+ "heapless",
+ "nrf-softdevice-macro",
+ "nrf-softdevice-s140",
+ "nrf52840-pac",
+ "num_enum",
 ]
 
 [[package]]
@@ -738,8 +750,8 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa6fa5645ef5a760cd340eaa92af9c1ce131c8c09e7f8926d8a24b59d26652b9"
 dependencies = [
-    "cortex-m",
-    "defmt",
+ "cortex-m",
+ "defmt",
 ]
 
 [[package]]
@@ -809,6 +821,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 
 [[package]]
+name = "rclite"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9268a2907d57b40194cb9377361a7528f627a3d2d94283f8584c595e9a853bc8"
+dependencies = [
+ "branches",
+]
+
+[[package]]
 name = "regex"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -874,29 +895,31 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 name = "shble"
 version = "0.1.0"
 dependencies = [
-    "atomic-pool",
-    "cortex-m",
-    "cortex-m-rt",
-    "defmt",
-    "defmt-rtt",
-    "embassy-embedded-hal",
-    "embassy-executor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-    "embassy-nrf",
-    "embassy-sync",
-    "embassy-time",
-    "embedded-alloc",
-    "fixed",
-    "futures",
-    "heapless",
-    "lazy_static",
-    "nrf-softdevice",
-    "nrf-softdevice-s140",
-    "num-traits",
-    "panic-probe",
-    "paste",
-    "smallvec",
-    "static_cell",
-    "thiserror-no-std",
+ "atomic-pool",
+ "bit_field",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "embassy-embedded-hal",
+ "embassy-executor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-nrf",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-alloc",
+ "fixed",
+ "futures",
+ "heapless",
+ "lazy_static",
+ "nrf-softdevice",
+ "nrf-softdevice-s140",
+ "num-traits",
+ "panic-probe",
+ "paste",
+ "rclite",
+ "smallvec",
+ "static_cell",
+ "thiserror-no-std",
 ]
 
 [[package]]

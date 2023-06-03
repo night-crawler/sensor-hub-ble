@@ -1,14 +1,15 @@
 use core::mem;
 use core::mem::MaybeUninit;
 
-use defmt::unwrap;
+use defmt::{info, unwrap};
 use embassy_executor::Spawner;
 use embassy_nrf::{bind_interrupts, interrupt, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Pin};
 use embassy_nrf::interrupt::{Interrupt, InterruptExt, Priority};
-use embassy_nrf::peripherals::{SAADC, TWISPI0, TWISPI1};
+use embassy_nrf::peripherals::{SAADC, SPI3};
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Input, Resistor, Saadc};
+use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -26,6 +27,7 @@ bind_interrupts!(pub(crate) struct Irqs {
     SAADC => saadc::InterruptHandler;
     SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0 => twim::InterruptHandler<peripherals::TWISPI0>;
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => twim::InterruptHandler<peripherals::TWISPI1>;
+    SPIM3 => spim::InterruptHandler<peripherals::SPI3>;
 });
 
 
@@ -36,16 +38,33 @@ pub(crate) struct I2CPins<T> {
     pub(crate) config: twim::Config,
 }
 
+pub(crate) struct SpiTxPins<T> {
+    pub(crate) spim: T,
+    pub(crate) sck: AnyPin,
+    pub(crate) mosi: AnyPin,
+    pub(crate) config: spim::Config,
+}
+
+pub(crate) struct EpdControlPins {
+    pub(crate) cs: AnyPin,
+    pub(crate) dc: AnyPin,
+    pub(crate) busy: AnyPin,
+    pub(crate) rst: AnyPin,
+}
+
 
 pub(crate) struct DeviceManager {
     pub(crate) pin_group1: Arc<P>,
     pub(crate) spawner: Spawner,
-    pub(crate) saadc: Saadc<'static, 6>,
-    pub(crate) i2c0: I2CPins<TWISPI0>,
-    pub(crate) i2c1: I2CPins<TWISPI1>,
+    pub(crate) saadc: Saadc<'static, 5>,
+    // pub(crate) i2c0: I2CPins<TWISPI0>,
+    // pub(crate) i2c1: I2CPins<TWISPI1>,
+    pub(crate) spi3: SpiTxPins<SPI3>,
+    pub(crate) epd_control_pins: EpdControlPins,
 }
 
 fn prepare_nrf_peripherals() -> Peripherals {
+    // spim::In
     let mut config = embassy_nrf::config::Config::default();
     config.hfclk_source = HfclkSource::ExternalXtal;
     config.lfclk_source = LfclkSource::ExternalXtal;
@@ -54,40 +73,77 @@ fn prepare_nrf_peripherals() -> Peripherals {
     embassy_nrf::init(config)
 }
 
+
 impl DeviceManager {
     pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
         LED.lock().await.init(
-            board.P0_26,
-            board.P0_30,
-            board.P0_06,
-            board.P0_17,
+            board.P0_22,
+            board.P0_16,
+            board.P0_24,
+            board.P0_08,
         );
+        info!("Successfully Initialized LED");
 
         let mut led = LED.lock().await;
-
         led.blink_short(LedState::Purple).await;
 
         unsafe {
             interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::steal().set_priority(Priority::P2);
             interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::steal().set_priority(Priority::P2);
+            interrupt::SPIM3::steal().set_priority(Priority::P2);
+        };
+        info!("Successfully set interrupt priorities");
+
+        // mosi 5
+        // sclk 6
+
+        // let mut a: spim::Spim<SPI3> = spim::Spim::new_txonly(board.SPI3, Irqs,  board.P1_15, board.P1_14, spim_conf);
+        // let busy = embassy_nrf::gpio::Input::new(board.P1_13, Pull::None);  // 1
+        // let cs = Output::new(board.P1_12.degrade(), Level::High,OutputDrive::Standard);  // 4
+        // let dc = Output::new(board.P1_11, Level::High,OutputDrive::Standard);  // 3
+        // let rst = Output::new(board.P0_05, Level::High,OutputDrive::Standard);  // 2
+
+        let spi_tx_pins = SpiTxPins {
+            spim: board.SPI3,
+            sck: board.P0_21.degrade(),
+            mosi: board.P0_23.degrade(),
+            config: spim::Config::default(),
         };
 
-        let i2c0 = I2CPins {
-            twim: board.TWISPI0,
-            sda: board.P1_11.degrade(),
-            scl: board.P1_12.degrade(),
-            config: Default::default(),
+        let epd_control_pins = EpdControlPins {
+            cs: board.P0_17.degrade(),
+            dc: board.P0_15.degrade(),
+            busy: board.P0_19.degrade(),
+            rst: board.P0_13.degrade(),
         };
 
-        let i2c1 = I2CPins {
-            twim: board.TWISPI1,
-            sda: board.P1_13.degrade(),
-            scl: board.P1_14.degrade(),
-            config: Default::default(),
-        };
+
+        // EpdControls::new(cs, busy, dc, rst).unwrap(
+
+        // let qwe = embassy_nrf::timer::Timer::new(board.TIMER4);
+        // let qweqwe = Epd2in13::new(&mut a, cs, busy, dc, rst, &mut qwe).unwrap();
+        // qweqwe.ena
 
         led.blink_short(LedState::Purple).await;
+
+        // Timer::after(Duration::from_secs(100)).await;
+
+
+        // let i2c0 = I2CPins {
+        //     twim: board.TWISPI0,
+        //     sda: board.P1_11.degrade(),
+        //     scl: board.P1_12.degrade(),
+        //     config: Default::default(),
+        // };
+        //
+        // let i2c1 = I2CPins {
+        //     twim: board.TWISPI1,
+        //     sda: board.P1_13.degrade(),
+        //     scl: board.P1_14.degrade(),
+        //     config: Default::default(),
+        // };
+
 
         let mut saadc = Self::init_adc(
             [
@@ -96,21 +152,23 @@ impl DeviceManager {
                 board.P0_28.degrade_saadc(),
                 board.P0_29.degrade_saadc(),
                 board.P0_04.degrade_saadc(),
-                board.P0_05.degrade_saadc()
+                // board.P0_05.degrade_saadc()
             ],
             board.SAADC,
         );
         saadc.calibrate().await;
+        info!("Successfully Initialized SAADC");
 
         led.blink_short(LedState::Purple).await;
 
-        let _ = spawner.spawn(led_animation_task());
-        let _ = spawner.spawn(set_watchdog_task());
+        spawner.spawn(led_animation_task())?;
+        spawner.spawn(set_watchdog_task())?;
+        info!("Successfully spawned LED and Watchdog tasks");
 
         led.blink_short(LedState::Purple).await;
 
         let mut pin_group1 = OutPinManager::default();
-        pin_group1.register(board.P1_15);
+        // pin_group1.register(board.P1_15);
 
         led.blink_short(LedState::Purple).await;
 
@@ -124,8 +182,10 @@ impl DeviceManager {
         led.blink_short(LedState::Green).await;
 
         Ok(Self {
-            i2c0,
-            i2c1,
+            // i2c0,
+            // i2c1,
+            epd_control_pins,
+            spi3: spi_tx_pins,
             spawner,
             pin_group1: unwrap!(P::alloc(Mutex::new(pin_group1)).ok()),
             saadc,
@@ -151,7 +211,7 @@ impl DeviceManager {
 #[embassy_executor::task]
 async fn set_watchdog_task() {
     loop {
-        LedStateAnimation::blink(&[LedState::Tx], Duration::from_millis(100), Duration::from_secs(0));
+        LedStateAnimation::blink(&[LedState::Blue], Duration::from_millis(100), Duration::from_secs(0));
         Timer::after(Duration::from_secs(1)).await;
     }
 }

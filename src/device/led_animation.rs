@@ -1,4 +1,5 @@
 use core::mem::transmute;
+use defmt::debug;
 
 use embassy_nrf::gpio::{AnyPin, Level, Output, OutputDrive};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
@@ -135,6 +136,13 @@ impl LedManager {
         Timer::after(SHORT).await;
         self.set_state(LedState::Off);
         Timer::after(SHORT).await;
+    }
+
+    pub async fn blink_long(&mut self, state: LedState) {
+        self.set_state(state);
+        Timer::after(LONG).await;
+        self.set_state(LedState::Off);
+        Timer::after(LONG).await;
     }
 }
 

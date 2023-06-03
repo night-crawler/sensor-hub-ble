@@ -48,6 +48,8 @@ lazy_static = { version = "1.4", default-features = false, features = ["spin_no_
 thiserror-no-std = "2"
 num-traits = { version = "0.2.15", default-features = false }
 paste = { version = "1", default-features = false }
+bit_field = "0.10"
+rclite = "0.2"
 
 [[bin]]
 name = "main"

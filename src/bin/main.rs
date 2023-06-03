@@ -8,13 +8,12 @@ extern crate alloc;
 
 use core::sync::atomic::Ordering;
 
-use defmt::unwrap;
+use defmt::{info, unwrap};
 #[allow(unused)]
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
-use embassy_nrf::peripherals::TWISPI0;
 use embassy_time::{Duration, Timer};
 use embedded_alloc::Heap;
 use futures::{FutureExt, pin_mut};
@@ -26,10 +25,9 @@ use panic_probe as _;
 
 use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, Bme280ServiceEvent, DeviceInformationServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::device::adc::{ADC_TIMEOUT, notify_adc_value};
+use crate::common::device::adc::ADC_TIMEOUT;
 use crate::common::device::ble_debugger::ble_debug_notify_task;
-use crate::common::device::device_manager::{DeviceManager, I2CPins};
-use crate::common::device::i2c::read_i2c0;
+use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::led_animation::{LED, LedState, LedStateAnimation};
 use crate::common::device::nrf_temp::notify_nrf_temp;
 
@@ -75,6 +73,9 @@ async fn main(spawner: Spawner) {
 
     let (adv_data, scan_data) = prepare_adv_scan_data();
 
+    info!("Init has finished successfully");
+
+
     loop {
         let config = peripheral::Config::default();
         let adv = peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
@@ -85,12 +86,12 @@ async fn main(spawner: Spawner) {
 
         let _ = server.dis.battery_level_set(&50);
 
-        let twim0: &mut I2CPins<TWISPI0> = &mut device_manager.i2c0;
+        // let twim0: &mut I2CPins<TWISPI0> = &mut device_manager.i2c0;
 
         let ble_debug_fut = ble_debug_notify_task(&server, &conn);
         let temp_fut = notify_nrf_temp(sd, &server, &conn);
-        let adc_fut = notify_adc_value(&mut device_manager.saadc, &server, &conn);
-        let i2c0_fut = read_i2c0(twim0, &server, &conn);
+        // let adc_fut = notify_adc_value(&mut device_manager.saadc, &server, &conn);
+        // let i2c0_fut = read_i2c0(twim0, &server, &conn);
 
         let server_fut = gatt_server::run(&conn, &server, |e| match e {
             BleServerEvent::Dis(event) => match event {
@@ -127,21 +128,26 @@ async fn main(spawner: Spawner) {
             }
         });
 
-        pin_mut!(adc_fut, server_fut, temp_fut, i2c0_fut);
+        pin_mut!(
+            // adc_fut,
+            server_fut,
+            temp_fut,
+            // i2c0_fut
+        );
 
         let return_state = select_biased! {
             _ = server_fut.fuse() => {
                 &[LedState::Purple, LedState::Yellow, LedState::White]
             }
-            _ = adc_fut.fuse() => {
-                &[LedState::Red, LedState::Green, LedState::Blue]
-            }
+            // _ = adc_fut.fuse() => {
+            //     &[LedState::Red, LedState::Green, LedState::Blue]
+            // }
             _ = temp_fut.fuse() => {
                 &[LedState::White, LedState::Cyan, LedState::Purple]
             }
-            _ = i2c0_fut.fuse() => {
-                &[LedState::Green, LedState::Red, LedState::Yellow]
-            }
+            // _ = i2c0_fut.fuse() => {
+            //     &[LedState::Green, LedState::Red, LedState::Yellow]
+            // }
             _ = ble_debug_fut.fuse() => {
                 &[LedState::Cyan, LedState::Red, LedState::Yellow]
             }
@@ -150,4 +156,5 @@ async fn main(spawner: Spawner) {
         LedStateAnimation::sweep_long(return_state);
     }
 }
+
 
