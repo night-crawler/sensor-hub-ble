@@ -5,7 +5,7 @@ use embassy_executor::Spawner;
 use embassy_nrf::{bind_interrupts, interrupt, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Pin};
-use embassy_nrf::interrupt::{Interrupt, InterruptExt, Priority};
+use embassy_nrf::interrupt::{Interrupt, Priority};
 use embassy_nrf::peripherals::{SAADC, SPI3};
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Input, Resistor, Saadc};
 use embassy_nrf::spim;
@@ -13,6 +13,7 @@ use embassy_nrf::twim::{self};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
+use rclite::Arc;
 
 use crate::common::device::error::DeviceError;
 use crate::common::device::led_animation::{LED, led_animation_task, LedState, LedStateAnimation};
@@ -45,8 +46,6 @@ pub(crate) struct EpdControlPins {
     pub(crate) busy: AnyPin,
     pub(crate) rst: AnyPin,
 }
-
-use rclite::Arc;
 
 pub(crate) struct DeviceManager {
     pub(crate) spawner: Spawner,
@@ -82,11 +81,9 @@ impl DeviceManager {
         let mut led = LED.lock().await;
         led.blink_short(LedState::Purple).await;
 
-        unsafe {
-            interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::steal().set_priority(Priority::P2);
-            interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::steal().set_priority(Priority::P2);
-            interrupt::SPIM3::steal().set_priority(Priority::P2);
-        };
+        interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
+        interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
+        interrupt::SPIM3::set_priority(Priority::P2);
         info!("Successfully set interrupt priorities");
 
         // mosi 5
@@ -181,7 +178,7 @@ impl DeviceManager {
             channel_configs[index] = channel_cfg;
         }
 
-        unsafe { interrupt::SAADC::steal() }.set_priority(Priority::P3);
+        interrupt::SAADC::set_priority(Priority::P3);
         let saadc = Saadc::new(adc, Irqs, config, channel_configs);
         saadc
     }

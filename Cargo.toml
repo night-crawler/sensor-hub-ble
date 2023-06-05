@@ -41,7 +41,7 @@ futures = { version = "0.3.5", default-features = false, features = ["async-awai
 fixed = "1.2.0"
 heapless = "0.7"
 atomic-pool = "1.0.0"
-static_cell = "1.0.0"
+static_cell = "1.1"
 smallvec = { version = "1", default-features = false }
 embedded-alloc = "0.5"
 lazy_static = { version = "1.4", default-features = false, features = ["spin_no_std"] }
