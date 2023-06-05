@@ -11,6 +11,7 @@ use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
 use crate::common::device::epd::{buffer_len, Epd2in13};
 use crate::common::device::epd::epd_controls::EpdControls;
+use crate::common::device::epd::img::IMG;
 use crate::common::device::epd::traits::{InternalWiAdditions, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
 
@@ -32,7 +33,7 @@ pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<S
             }
         }
 
-        Timer::after(Duration::from_secs(1)).await;
+        Timer::after(Duration::from_secs(5)).await;
     }
 }
 
@@ -65,20 +66,18 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
 
     let mut epd = Epd2in13::new(controls);
     epd.init().await?;
+
     info!("Initialized EPD");
 
     info!("Clearing frame");
-    epd.clear_frame().await?;
+    // epd.clear_frame().await?;
     info!("Cleared frame");
 
-    // let buf_len = buffer_len(epd.width() as usize, epd.height() as usize);
-    // let mut buf = [0u8; 4000];
-    // for i in 0..buf_len {
-    //     buf[i] = 0;
-    // }
-    //
-    // epd.update_and_display_frame(&buf).await?;
-    // info!("Updated and displayed frame");
+
+    epd.display_partial(&IMG).await?;
+
+    // epd.sleep().await?;
+    info!("Updated and displayed frame");
 
     Ok(())
 }

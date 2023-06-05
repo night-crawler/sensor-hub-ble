@@ -13,6 +13,7 @@ use embassy_nrf::twim::{self};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
+use rclite::Arc;
 
 use crate::common::device::error::DeviceError;
 use crate::common::device::led_animation::{LED, led_animation_task, LedState, LedStateAnimation};
@@ -45,8 +46,6 @@ pub(crate) struct EpdControlPins {
     pub(crate) busy: AnyPin,
     pub(crate) rst: AnyPin,
 }
-
-use rclite::Arc;
 
 pub(crate) struct DeviceManager {
     pub(crate) spawner: Spawner,
@@ -139,7 +138,7 @@ impl DeviceManager {
         // };
 
 
-        let mut saadc = Self::init_adc(
+        let saadc = Self::init_adc(
             [
                 board.P0_02.degrade_saadc(),
                 board.P0_03.degrade_saadc(),

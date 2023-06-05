@@ -38,24 +38,34 @@ impl<'a, I: SpimWrapper> EpdControls<'a, I> {
 impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
     async fn cmd<T: Command>(&mut self, command: T) -> Result<(), CustomSpimError> {
         self.dc.set_low();
+        self.cs.set_low();
 
-        // Transfer the command over spi
-        self.write(&[command.address()]).await
+        Timer::after(Duration::from_micros(1)).await;
+        self.interface.write(&[command.address()]).await?;
+        Timer::after(Duration::from_micros(1)).await;
+
+        self.cs.set_high();
+        Ok(())
     }
 
     async fn data(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
         self.dc.set_high();
+        self.cs.set_low();
 
-        // for val in data.iter().copied() {
-        //     Transfer data one u8 at a time over spi
-        // self.write( &[val])?;
-        // }
-        self.write(data).await
+        Timer::after(Duration::from_micros(1)).await;
+
+        for (index, b) in data.iter().copied().enumerate() {
+            self.interface.write(&[b]).await?;
+        }
+        Timer::after(Duration::from_micros(1)).await;
+        self.cs.set_high();
+        Ok(())
     }
 
     async fn cmd_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), CustomSpimError> {
         self.cmd(command).await?;
-        self.data(data).await
+        self.data(data).await?;
+        Ok(())
     }
 
     async fn data_x_times(&mut self, val: u8, repetitions: u32) -> Result<(), CustomSpimError> {
@@ -84,10 +94,8 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
 
     async fn wait_until_idle(&mut self, is_busy_low: bool) {
         if is_busy_low {
-            info!("wait_until_idle (high)");
             self.busy.wait_for_high().await;
         } else {
-            info!("wait_until_idle (low)");
             self.busy.wait_for_low().await
         }
     }
@@ -111,16 +119,13 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
             || (!is_busy_low && self.busy.is_high())
     }
 
-    async fn reset(&mut self, initial_delay: u32, duration: u32) {
+    async fn reset(&mut self, _initial_delay: u32, _duration: u32) {
         self.rst.set_high();
-        Timer::after(Duration::from_micros(initial_delay as u64)).await;
+        Timer::after(Duration::from_millis(20)).await;
         self.rst.set_low();
-
-        Timer::after(Duration::from_micros(duration as u64)).await;
+        Timer::after(Duration::from_micros(2)).await;
         self.rst.set_high();
-        //TODO: the upstream libraries always sleep for 200ms here
-        // 10ms works fine with just for the 7in5_v2 but this needs to be validated for other devices
-        Timer::after(Duration::from_micros(200_000)).await;
+        Timer::after(Duration::from_micros(20)).await;
 
         info!("Reset complete");
     }
