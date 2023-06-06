@@ -74,7 +74,9 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     info!("Cleared frame");
 
 
-    epd.display_partial(&IMG).await?;
+    epd.display(&IMG).await?;
+
+    epd.sleep().await?;
 
     // epd.sleep().await?;
     info!("Updated and displayed frame");

@@ -95,11 +95,14 @@ impl DeviceManager {
         // let dc = Output::new(board.P1_11, Level::High,OutputDrive::Standard);  // 3
         // let rst = Output::new(board.P0_05, Level::High,OutputDrive::Standard);  // 2
 
+        let mut spim_conf = spim::Config::default();
+        spim_conf.frequency = spim::Frequency::K125;
+
         let spi_tx_pins = SpiTxPins {
             spim: board.SPI3,
             sck: board.P0_21.degrade(),
             mosi: board.P0_23.degrade(),
-            config: spim::Config::default(),
+            config: spim_conf,
         };
 
         let epd_control_pins = EpdControlPins {

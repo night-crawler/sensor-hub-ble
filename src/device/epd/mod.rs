@@ -9,6 +9,7 @@
 //!
 
 use defmt::info;
+
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::{InternalWiAdditions, RefreshLut, WaveshareDisplay};
@@ -168,12 +169,13 @@ impl<I: DisplayInterface> Epd2in13<I> {
         self.wait_until_idle().await;
 
         self.cmd_with_data(Command::DriverOutputControl, &[
-            0xf9,
-            0x00,
+            ((HEIGHT + 46 - 1) % 256) as u8,
+            ((HEIGHT + 46 - 1) / 256) as u8,
             0x00,
         ]).await?;
 
-        self.cmd_with_data(Command::DataEntryModeSetting, &[0x03]).await?;
+
+        self.cmd_with_data(Command::DataEntryModeSetting, &[0x01]).await?;
 
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_cursor(0, 0).await?;
@@ -205,11 +207,27 @@ impl<I: DisplayInterface> Epd2in13<I> {
                 let index = (i + j * linewidth) as usize;
                 info!("Sending byte {}", counter);
                 self.data(&[image[index]]).await?;
+                self.wait_until_idle().await;
                 counter += 1;
             }
         }
 
         self.turn_on_display().await?;
+
+        self.command(Command::WriteRamRed).await?;
+
+        let mut counter = 0;
+
+        for j in 0..HEIGHT {
+            for i in 0..linewidth {
+                let index = (i + j * linewidth) as usize;
+                info!("Sending byte {}", counter);
+                self.data(&[0]).await?;
+                self.wait_until_idle().await;
+                counter += 1;
+            }
+        }
+
         Ok(())
     }
 
@@ -268,6 +286,11 @@ impl<I: DisplayInterface> Epd2in13<I> {
             self.data(&[color.get_byte_value()]).await?;
         }
         self.turn_on_display().await?;
+        Ok(())
+    }
+
+    pub async fn sleep(&mut self) -> Result<(), CustomSpimError> {
+        self.cmd_with_data(Command::DeepSleepMode, &[0x01]).await?;
         Ok(())
     }
 }
