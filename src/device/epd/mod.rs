@@ -27,6 +27,7 @@ pub(crate) mod constants;
 pub(crate) mod traits;
 pub(crate) mod interface;
 pub(crate) mod epd_controls;
+pub(crate) mod img;
 
 
 pub const fn buffer_len(width: usize, height: usize) -> usize {
@@ -71,7 +72,7 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
 {
     async fn init(&mut self) -> Result<(), CustomSpimError> {
         // HW reset
-        self.interface.reset(10_000, 10_000).await;
+        self.interface.reset(2000, 10_000).await;
 
         if self.refresh == RefreshLut::Quick {
             self.set_vcom_register((-9).vcom()).await?;
@@ -111,14 +112,14 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                     scan_is_linear: true,
                     scan_g0_is_first: true,
                     scan_dir_incr: true,
-                    width: (HEIGHT - 1) as u16,
+                    width: (WIDTH - 1) as u16,
                 },
             ).await?;
             info!("Setting driver output done");
 
             // These 2 are the reset values
-            self.set_dummy_line_period(0x30).await?;
-            info!("Setting dummy line period done");
+            // self.set_dummy_line_period(0x30).await?;
+            // info!("Setting dummy line period done");
 
             self.set_gate_scan_start_position(0).await?;
             info!("Setting gate scan start position done");
@@ -127,11 +128,11 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
             info!("Setting data entry mode done");
 
             // Use simple X/Y auto increase
-            self.set_ram_area(0, 0, WIDTH - 1, HEIGHT - 1).await?;
+            self.set_ram_area(0, 0, WIDTH - 1, HEIGHT- 1).await?;
             info!("Setting ram area done");
 
             self.set_ram_address_counters(0, 0).await?;
-            info!("Setting ram area done");
+            info!("set_ram_address_counters done");
 
             self.set_border_waveform(
                 BorderWaveForm {
@@ -498,7 +499,9 @@ impl<I: DisplayInterface> Epd2in13<I> {
     }
 
     async fn command(&mut self, command: Command) -> Result<(), CustomSpimError> {
-        self.interface.cmd(command).await
+        self.interface.cmd(command).await?;
+        self.wait_until_idle().await?;
+        Ok(())
     }
 
     async fn cmd_with_data(
@@ -506,6 +509,8 @@ impl<I: DisplayInterface> Epd2in13<I> {
         command: Command,
         data: &[u8],
     ) -> Result<(), CustomSpimError> {
-        self.interface.cmd_with_data(command, data).await
+        self.interface.cmd_with_data(command, data).await?;
+        self.wait_until_idle().await?;
+        Ok(())
     }
 }

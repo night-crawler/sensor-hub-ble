@@ -46,11 +46,13 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
     async fn data(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
         self.dc.set_high();
 
-        // for val in data.iter().copied() {
-        //     Transfer data one u8 at a time over spi
-        // self.write( &[val])?;
-        // }
-        self.write(data).await
+        for (index, val) in data.iter().copied().enumerate() {
+            // Transfer data one u8 at a time over spi
+            info!("Writing {}", index);
+            self.write( &[val]).await?;
+        }
+        // self.write(data).await
+        Ok(())
     }
 
     async fn cmd_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), CustomSpimError> {

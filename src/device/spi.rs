@@ -11,6 +11,7 @@ use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
 use crate::common::device::epd::{buffer_len, Epd2in13};
 use crate::common::device::epd::epd_controls::EpdControls;
+use crate::common::device::epd::img::IMG;
 use crate::common::device::epd::traits::{InternalWiAdditions, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
 
@@ -72,13 +73,12 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     info!("Cleared frame");
 
     // let buf_len = buffer_len(epd.width() as usize, epd.height() as usize);
-    // let mut buf = [0u8; 4000];
-    // for i in 0..buf_len {
-    //     buf[i] = 0;
-    // }
-    //
-    // epd.update_and_display_frame(&buf).await?;
-    // info!("Updated and displayed frame");
+    let mut buf = [0u8; 4000];
+    buf.iter_mut().zip(IMG).for_each(|(dst, src)| *dst = src);
+
+    epd.update_and_display_frame(&buf).await?;
+    info!("Updated and displayed frame");
+
 
     Ok(())
 }
