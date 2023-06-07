@@ -10,6 +10,7 @@ use rclite::Arc;
 use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
 use crate::common::device::epd::{buffer_len, Epd2in13};
+use crate::common::device::epd::color::Color;
 use crate::common::device::epd::epd_controls::EpdControls;
 use crate::common::device::epd::img::IMG;
 use crate::common::device::epd::traits::{InternalWiAdditions, WaveshareDisplay};
@@ -51,10 +52,10 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
         config,
     );
 
-    let busy = Input::new(&mut control_pins.busy, Pull::Up);
+    let busy = Input::new(&mut control_pins.busy, Pull::Down);
     let cs = Output::new(&mut control_pins.cs, Level::High, OutputDrive::Standard);
     let dc = Output::new(&mut control_pins.dc, Level::Low, OutputDrive::Standard);
-    let rst = Output::new(&mut control_pins.rst, Level::Low, OutputDrive::Standard);
+    let rst = Output::new(&mut control_pins.rst, Level::High, OutputDrive::Standard);
     let controls = EpdControls::new(
         &mut spi,
         busy,
@@ -70,7 +71,7 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     info!("Initialized EPD");
 
     info!("Clearing frame");
-    // epd.clear_frame().await?;
+    epd.clear(Color::Black).await?;
     info!("Cleared frame");
 
 

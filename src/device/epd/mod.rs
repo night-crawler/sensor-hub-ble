@@ -9,6 +9,8 @@
 //!
 
 use defmt::info;
+use embassy_time::{Duration, Timer};
+use futures::future;
 
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
 use crate::common::device::epd::interface::DisplayInterface;
@@ -129,7 +131,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         self.cmd_with_data(Command::Unknown1, &[0x22]).await?;
         self.cmd_with_data(Command::GateDrivingVoltageCtrl, &[0x17]).await?;
         self.cmd_with_data(Command::SourceDrivingVoltageCtrl, &[0x41, 0x0, 0x32]).await?;
-        self.cmd_with_data(Command::WriteVcomRegister, &[0x37]).await?;
+        self.cmd_with_data(Command::WriteVcomRegister, &[0x78]).await?;
 
         Ok(())
     }
@@ -167,15 +169,16 @@ impl<I: DisplayInterface> Epd2in13<I> {
         self.wait_until_idle().await;
         self.command(Command::SwReset).await?;
         self.wait_until_idle().await;
+        Timer::after(Duration::from_millis(10)).await;
 
         self.cmd_with_data(Command::DriverOutputControl, &[
-            ((HEIGHT + 46 - 1) % 256) as u8,
-            ((HEIGHT + 46 - 1) / 256) as u8,
+            0xf9,
+            0x00,
             0x00,
         ]).await?;
 
 
-        self.cmd_with_data(Command::DataEntryModeSetting, &[0x01]).await?;
+        self.cmd_with_data(Command::DataEntryModeSetting, &[0x03]).await?;
 
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_cursor(0, 0).await?;
@@ -198,15 +201,20 @@ impl<I: DisplayInterface> Epd2in13<I> {
             WIDTH / 8 + 1
         };
 
+        Timer::after(Duration::from_millis(100)).await;
+
         self.command(Command::WriteRam).await?;
 
         let mut counter = 0;
 
+        self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
+        self.set_cursor(0, 0).await?;
+
         for j in 0..HEIGHT {
             for i in 0..linewidth {
                 let index = (i + j * linewidth) as usize;
-                info!("Sending byte {}", counter);
                 self.data(&[image[index]]).await?;
+
                 self.wait_until_idle().await;
                 counter += 1;
             }

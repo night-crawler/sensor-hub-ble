@@ -80,11 +80,15 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
     async fn write(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
         // activate spi with cs low
         self.cs.set_low();
+        Timer::after(Duration::from_micros(1)).await;
+
 
         // transfer spi data
         // Be careful!! Linux has a default limit of 4096 bytes per spi transfer
         // see https://raspberrypi.stackexchange.com/questions/65595/spi-transfer-fails-with-buffer-size-greater-than-4096
         self.interface.write(data).await?;
+
+        Timer::after(Duration::from_micros(1)).await;
 
         // deactivate spi with cs high
         self.cs.set_high();
