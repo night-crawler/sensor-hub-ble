@@ -10,8 +10,7 @@
 
 use defmt::info;
 use embassy_time::{Duration, Timer};
-use futures::future;
-
+use futures::FutureExt;
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::{InternalWiAdditions, RefreshLut, WaveshareDisplay};
@@ -213,28 +212,23 @@ impl<I: DisplayInterface> Epd2in13<I> {
         for j in 0..HEIGHT {
             for i in 0..linewidth {
                 let index = (i + j * linewidth) as usize;
-                self.data(&[image[index]]).await?;
+                let mut b = image[index];
+                self.data(&[b]).await?;
 
-                self.wait_until_idle().await;
+                futures::select_biased! {
+                    _ = self.wait_until_idle().fuse() => {
+                        info!("Byte {} / {} sent: {:#04x}!", index, counter, b)
+                    }
+                    _ = Timer::after(Duration::from_millis(100)).fuse() => {
+                        info!("Byte {} / {} - {:#04x} timeout!", index, counter, b)
+                    }
+                }
                 counter += 1;
             }
         }
 
         self.turn_on_display().await?;
 
-        self.command(Command::WriteRamRed).await?;
-
-        let mut counter = 0;
-
-        for j in 0..HEIGHT {
-            for i in 0..linewidth {
-                let index = (i + j * linewidth) as usize;
-                info!("Sending byte {}", counter);
-                self.data(&[0]).await?;
-                self.wait_until_idle().await;
-                counter += 1;
-            }
-        }
 
         Ok(())
     }
