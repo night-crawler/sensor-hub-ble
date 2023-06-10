@@ -2,6 +2,7 @@ use defmt::info;
 use embassy_time::{Duration, Timer};
 
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
+use crate::common::device::epd::graphics::Display;
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::error::CustomSpimError;
 
@@ -16,8 +17,12 @@ pub(crate) mod command;
 pub(crate) mod constants;
 pub(crate) mod interface;
 pub(crate) mod epd_controls;
-pub(crate) mod img;
 pub(crate) mod traits;
+pub(crate) mod graphics;
+
+pub const fn buffer_len(width: usize, height: usize) -> usize {
+    (width + 7) / 8 * height
+}
 
 /// Width of the display.
 pub const WIDTH: u32 = 122;
@@ -238,4 +243,10 @@ impl<I: DisplayInterface> Epd2in13<I> {
 }
 
 
-
+pub type Display2in13 = Display<
+    WIDTH,
+    HEIGHT,
+    false,
+    { buffer_len(WIDTH as usize, HEIGHT as usize) },
+    Color,
+>;
