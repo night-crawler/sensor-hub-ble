@@ -3,6 +3,7 @@
 
 use bit_field::BitField;
 use crate::common::device::epd::traits;
+
 /// Epd2in13 v2
 ///
 /// For more infos about the addresses and what they are doing look into the pdfs

@@ -13,7 +13,6 @@ use crate::common::device::epd::Epd2in13;
 use crate::common::device::epd::color::Color;
 use crate::common::device::epd::epd_controls::EpdControls;
 use crate::common::device::epd::img::IMG;
-use crate::common::device::epd::traits::{InternalWiAdditions, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
 
 #[embassy_executor::task]
@@ -76,9 +75,10 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
 
     let buf = IMG.clone();
 
-    epd.display(&buf).await?;
+    epd.display_partial(&buf).await?;
+    // epd.display(&buf).await?;
 
-    epd.clear(Color::White).await?;
+    // epd.clear(Color::White).await?;
 
     epd.sleep().await?;
 

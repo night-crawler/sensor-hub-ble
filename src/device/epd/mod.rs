@@ -1,25 +1,23 @@
 use defmt::info;
 use embassy_time::{Duration, Timer};
-use futures::FutureExt;
+
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
 use crate::common::device::epd::interface::DisplayInterface;
-use crate::common::device::epd::traits::{InternalWiAdditions, RefreshLut, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
 
 use self::color::Color;
 use self::command::{
     Command,
     DeepSleepMode,
-    I32Ext,
 };
 
 pub(crate) mod color;
 pub(crate) mod command;
 pub(crate) mod constants;
-pub(crate) mod traits;
 pub(crate) mod interface;
 pub(crate) mod epd_controls;
 pub(crate) mod img;
+pub(crate) mod traits;
 
 /// Width of the display.
 pub const WIDTH: u32 = 122;
@@ -38,7 +36,6 @@ pub struct Epd2in13<I: DisplayInterface> {
 
     /// Background Color
     background_color: Color,
-    refresh: RefreshLut,
 }
 
 impl<I: DisplayInterface> Epd2in13<I> {
@@ -47,7 +44,6 @@ impl<I: DisplayInterface> Epd2in13<I> {
             interface,
             sleep_mode: DeepSleepMode::Mode2,
             background_color: Color::White,
-            refresh: RefreshLut::Full,
         }
     }
     async fn send_command(&mut self, command: Command) -> Result<(), CustomSpimError> {
