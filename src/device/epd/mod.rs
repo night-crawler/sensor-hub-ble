@@ -99,40 +99,25 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                 },
             ).await?;
         } else {
-            info!("Initializing display (refresh = full)");
             self.wait_until_idle().await?;
-            info!("Display is idle");
             self.command(Command::SwReset).await?;
-            info!("Reset done");
             self.wait_until_idle().await?;
-            info!("Display is idle");
 
             self.set_driver_output(
                 DriverOutput {
                     scan_is_linear: true,
                     scan_g0_is_first: true,
                     scan_dir_incr: true,
-                    width: (WIDTH - 1) as u16,
+                    width: (HEIGHT - 1) as u16,
                 },
             ).await?;
-            info!("Setting driver output done");
-
             // These 2 are the reset values
-            // self.set_dummy_line_period(0x30).await?;
-            // info!("Setting dummy line period done");
+            self.set_dummy_line_period(0x30).await?;
 
             self.set_gate_scan_start_position(0).await?;
-            info!("Setting gate scan start position done");
-
             self.set_data_entry_mode(DataEntryModeIncr::XIncrYIncr, DataEntryModeDir::XDir).await?;
-            info!("Setting data entry mode done");
-
-            // Use simple X/Y auto increase
             self.set_ram_area(0, 0, WIDTH - 1, HEIGHT- 1).await?;
-            info!("Setting ram area done");
-
             self.set_ram_address_counters(0, 0).await?;
-            info!("set_ram_address_counters done");
 
             self.set_border_waveform(
                 BorderWaveForm {
@@ -141,10 +126,7 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                     gs_trans: BorderWaveFormGs::Lut3,
                 },
             ).await?;
-            info!("Setting border waveform done");
-
-            self.set_vcom_register((-21).vcom()).await?;
-
+            self.set_vcom_register((-30).vcom()).await?;
             self.set_gate_driving_voltage(190.gate_driving_decivolt()).await?;
             self.set_source_driving_voltage(
                 150.source_driving_decivolt(),

@@ -72,6 +72,8 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     epd.clear_frame().await?;
     info!("Cleared frame");
 
+    Timer::after(Duration::from_secs(5)).await;
+
     // let buf_len = buffer_len(epd.width() as usize, epd.height() as usize);
     let mut buf = [0u8; 4000];
     buf.iter_mut().zip(IMG).for_each(|(dst, src)| *dst = src);
@@ -79,7 +81,6 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     epd.update_and_display_frame(&buf).await?;
     info!("Updated and displayed frame");
     epd.sleep().await?;
-
 
     Ok(())
 }
