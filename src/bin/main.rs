@@ -68,13 +68,12 @@ async fn main(spawner: Spawner) {
     let server = unwrap!(BleServer::new(sd));
     LED.lock().await.blink_short(LedState::White).await;
 
-    unwrap!(spawner.spawn(epd_task(Arc::clone(&device_manager.spi3), Arc::clone(&device_manager.epd_control_pins))));
+    unwrap!(spawner.spawn(epd_task(Arc::clone(&device_manager.spi2), Arc::clone(&device_manager.epd_control_pins))));
     unwrap!(spawner.spawn(softdevice_task(sd)));
 
     let (adv_data, scan_data) = prepare_adv_scan_data();
 
     info!("Init has finished successfully");
-
 
     loop {
         let config = peripheral::Config::default();

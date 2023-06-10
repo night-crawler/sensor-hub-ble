@@ -2,11 +2,15 @@ use core::mem;
 
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_nrf::{bind_interrupts, interrupt, peripherals, Peripherals, saadc};
+use embassy_nrf::{bind_interrupts, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Pin};
-use embassy_nrf::interrupt::{Interrupt, Priority};
-use embassy_nrf::peripherals::{SAADC, SPI3};
+use embassy_nrf::interrupt::Priority;
+use embassy_nrf::interrupt::typelevel::Interrupt;
+use embassy_nrf::interrupt::typelevel::SAADC;
+use embassy_nrf::interrupt::typelevel::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
+use embassy_nrf::interrupt::typelevel::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
+use embassy_nrf::interrupt::typelevel::SPIM2_SPIS2_SPI2;
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Input, Resistor, Saadc};
 use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
@@ -22,7 +26,7 @@ bind_interrupts!(pub(crate) struct Irqs {
     SAADC => saadc::InterruptHandler;
     SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0 => twim::InterruptHandler<peripherals::TWISPI0>;
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => twim::InterruptHandler<peripherals::TWISPI1>;
-    SPIM3 => spim::InterruptHandler<peripherals::SPI3>;
+    SPIM2_SPIS2_SPI2 => spim::InterruptHandler<peripherals::SPI2>;
 });
 
 
@@ -52,7 +56,7 @@ pub(crate) struct DeviceManager {
     pub(crate) saadc: Saadc<'static, 5>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
     // pub(crate) i2c1: I2CPins<TWISPI1>,
-    pub(crate) spi3: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI3>>>,
+    pub(crate) spi2: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
     pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
 }
 
@@ -81,9 +85,9 @@ impl DeviceManager {
         let mut led = LED.lock().await;
         led.blink_short(LedState::Purple).await;
 
-            interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
-            interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
-            interrupt::SPIM3::set_priority(Priority::P2);
+        SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
+        SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
+        SPIM2_SPIS2_SPI2::set_priority(Priority::P3);
         info!("Successfully set interrupt priorities");
 
         // mosi 5
@@ -96,10 +100,10 @@ impl DeviceManager {
         // let rst = Output::new(board.P0_05, Level::High,OutputDrive::Standard);  // 2
 
         let mut spim_conf = spim::Config::default();
-        spim_conf.frequency = spim::Frequency::K125;
+        spim_conf.frequency = spim::Frequency::K500;
 
         let spi_tx_pins = SpiTxPins {
-            spim: board.SPI3,
+            spim: board.SPI2,
             sck: board.P0_21.degrade(),
             mosi: board.P0_23.degrade(),
             config: spim_conf,
@@ -112,17 +116,7 @@ impl DeviceManager {
             rst: board.P0_13.degrade(),
         };
 
-
-        // EpdControls::new(cs, busy, dc, rst).unwrap(
-
-        // let qwe = embassy_nrf::timer::Timer::new(board.TIMER4);
-        // let qweqwe = Epd2in13::new(&mut a, cs, busy, dc, rst, &mut qwe).unwrap();
-        // qweqwe.ena
-
         led.blink_short(LedState::Purple).await;
-
-        // Timer::after(Duration::from_secs(100)).await;
-
 
         // let i2c0 = I2CPins {
         //     twim: board.TWISPI0,
@@ -165,13 +159,13 @@ impl DeviceManager {
             // i2c0,
             // i2c1,
             epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
-            spi3: Arc::new(Mutex::new(spi_tx_pins)),
+            spi2: Arc::new(Mutex::new(spi_tx_pins)),
             spawner,
             saadc,
         })
     }
 
-    fn init_adc<const N: usize>(pins: [AnyInput; N], adc: SAADC) -> Saadc<'static, N> {
+    fn init_adc<const N: usize>(pins: [AnyInput; N], adc: peripherals::SAADC) -> Saadc<'static, N> {
         let config = saadc::Config::default();
 
         let mut channel_configs: [ChannelConfig; N] = unsafe { mem::zeroed() };
@@ -181,7 +175,7 @@ impl DeviceManager {
             channel_configs[index] = channel_cfg;
         }
 
-        interrupt::SAADC::set_priority(Priority::P3);
+        SAADC::set_priority(Priority::P3);
         let saadc = Saadc::new(adc, Irqs, config, channel_configs);
         saadc
     }

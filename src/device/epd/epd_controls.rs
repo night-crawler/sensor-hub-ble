@@ -36,39 +36,25 @@ impl<'a, I: SpimWrapper> EpdControls<'a, I> {
 }
 
 impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
-    async fn cmd<T: Command>(&mut self, command: T) -> Result<(), CustomSpimError> {
+    async fn send_command<T: Command>(&mut self, command: T) -> Result<(), CustomSpimError> {
         self.dc.set_low();
-        self.cs.set_low();
-
-        Timer::after(Duration::from_micros(1)).await;
-        self.interface.write(&[command.address()]).await?;
-        Timer::after(Duration::from_micros(1)).await;
-
-        self.cs.set_high();
+        self.write(&[command.address()]).await?;
         Ok(())
     }
 
-    async fn data(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
+    async fn send_data(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
         self.dc.set_high();
-        self.cs.set_low();
-
-        Timer::after(Duration::from_micros(1)).await;
-
-        for (index, b) in data.iter().copied().enumerate() {
-            self.interface.write(&[b]).await?;
-        }
-        Timer::after(Duration::from_micros(1)).await;
-        self.cs.set_high();
+        self.write(data).await?;
         Ok(())
     }
 
-    async fn cmd_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), CustomSpimError> {
-        self.cmd(command).await?;
-        self.data(data).await?;
+    async fn send_command_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), CustomSpimError> {
+        self.send_command(command).await?;
+        self.send_data(data).await?;
         Ok(())
     }
 
-    async fn data_x_times(&mut self, val: u8, repetitions: u32) -> Result<(), CustomSpimError> {
+    async fn send_data_x_times(&mut self, val: u8, repetitions: u32) -> Result<(), CustomSpimError> {
         self.dc.set_high();
         // Transfer data (u8) over spi
         for _ in 0..repetitions {
@@ -78,19 +64,13 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
     }
 
     async fn write(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
-        // activate spi with cs low
         self.cs.set_low();
         Timer::after(Duration::from_micros(1)).await;
 
-
-        // transfer spi data
-        // Be careful!! Linux has a default limit of 4096 bytes per spi transfer
-        // see https://raspberrypi.stackexchange.com/questions/65595/spi-transfer-fails-with-buffer-size-greater-than-4096
         self.interface.write(data).await?;
 
         Timer::after(Duration::from_micros(1)).await;
 
-        // deactivate spi with cs high
         self.cs.set_high();
 
         Ok(())
@@ -104,32 +84,13 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
         }
     }
 
-    async fn wait_until_idle_with_cmd<T: Command>(&mut self, is_busy_low: bool, status_command: T) -> Result<(), CustomSpimError> {
-        self.cmd(status_command).await?;
-        if self.delay_us > 0 {
-            Timer::after(Duration::from_micros(self.delay_us)).await
-        }
-        while self.is_busy(is_busy_low) {
-            self.cmd(status_command).await?;
-            if self.delay_us > 0 {
-                Timer::after(Duration::from_micros(self.delay_us)).await
-            }
-        }
-        Ok(())
-    }
-
-    fn is_busy(&self, is_busy_low: bool) -> bool {
-        (is_busy_low && self.busy.is_low())
-            || (!is_busy_low && self.busy.is_high())
-    }
-
     async fn reset(&mut self, _initial_delay: u32, _duration: u32) {
         self.rst.set_high();
         Timer::after(Duration::from_millis(20)).await;
         self.rst.set_low();
-        Timer::after(Duration::from_micros(2)).await;
+        Timer::after(Duration::from_millis(2)).await;
         self.rst.set_high();
-        Timer::after(Duration::from_micros(20)).await;
+        Timer::after(Duration::from_millis(20)).await;
 
         info!("Reset complete");
     }

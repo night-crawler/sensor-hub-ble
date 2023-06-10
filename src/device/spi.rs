@@ -1,6 +1,6 @@
 use defmt::info;
 use embassy_nrf::gpio::{Input, Level, Output, OutputDrive, Pull};
-use embassy_nrf::peripherals::SPI3;
+use embassy_nrf::peripherals::SPI2;
 use embassy_nrf::spim;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -9,7 +9,7 @@ use rclite::Arc;
 
 use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
-use crate::common::device::epd::{buffer_len, Epd2in13};
+use crate::common::device::epd::Epd2in13;
 use crate::common::device::epd::color::Color;
 use crate::common::device::epd::epd_controls::EpdControls;
 use crate::common::device::epd::img::IMG;
@@ -17,7 +17,7 @@ use crate::common::device::epd::traits::{InternalWiAdditions, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
 
 #[embassy_executor::task]
-pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI3>>>, control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>) {
+pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI2>>>, control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>) {
     loop {
         info!("EPD task loop started");
         let mut spi_pins = spi_pins.lock().await;
@@ -38,13 +38,13 @@ pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<S
     }
 }
 
-async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdControlPins) -> Result<(), CustomSpimError> {
+async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdControlPins) -> Result<(), CustomSpimError> {
     let mut config = spim::Config::default();
     config.frequency = spi_pins.config.frequency;
     config.mode = spi_pins.config.mode;
     config.orc = spi_pins.config.orc;
 
-    let mut spi: spim::Spim<SPI3> = spim::Spim::new_txonly(
+    let mut spi: spim::Spim<SPI2> = spim::Spim::new_txonly(
         &mut spi_pins.spim,
         Irqs,
         &mut spi_pins.sck,
@@ -71,11 +71,12 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
     info!("Initialized EPD");
 
     info!("Clearing frame");
-    epd.clear(Color::Black).await?;
+    epd.clear(Color::White).await?;
     info!("Cleared frame");
 
+    let buf = IMG.clone();
 
-    epd.display(&IMG).await?;
+    epd.display(&buf).await?;
 
     epd.sleep().await?;
 
