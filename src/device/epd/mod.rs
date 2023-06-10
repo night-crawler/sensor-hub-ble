@@ -285,7 +285,7 @@ impl<I: DisplayInterface> WaveshareDisplay for Epd2in13<I>
 
         self.command(Command::WriteRam).await?;
         info!("Clear frame: WriteRam succeeded");
-        self.interface.data_x_times(
+        self.interface.send_data_x_times(
             color,
             buffer_len(WIDTH as usize, HEIGHT as usize) as u32,
         ).await?;
@@ -297,7 +297,7 @@ impl<I: DisplayInterface> WaveshareDisplay for Epd2in13<I>
             self.set_ram_address_counters(0, 0).await?;
 
             self.command(Command::WriteRamRed).await?;
-            self.interface.data_x_times(
+            self.interface.send_data_x_times(
                 color,
                 buffer_len(WIDTH as usize, HEIGHT as usize) as u32,
             ).await?;
@@ -499,7 +499,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
     }
 
     async fn command(&mut self, command: Command) -> Result<(), CustomSpimError> {
-        self.interface.cmd(command).await?;
+        self.interface.send_command(command).await?;
         self.wait_until_idle().await?;
         Ok(())
     }
@@ -509,7 +509,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         command: Command,
         data: &[u8],
     ) -> Result<(), CustomSpimError> {
-        self.interface.cmd_with_data(command, data).await?;
+        self.interface.send_command_with_data(command, data).await?;
         self.wait_until_idle().await?;
         Ok(())
     }

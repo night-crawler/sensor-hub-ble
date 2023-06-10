@@ -2,11 +2,12 @@ use core::mem;
 
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_nrf::{bind_interrupts, interrupt, peripherals, Peripherals, saadc};
+use embassy_nrf::{bind_interrupts, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Pin};
-use embassy_nrf::interrupt::{Interrupt, Priority};
-use embassy_nrf::peripherals::{SAADC, SPI3};
+use embassy_nrf::interrupt::Priority;
+use embassy_nrf::interrupt::typelevel::{Interrupt, SAADC, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1, SPIM3};
+use embassy_nrf::peripherals::SPI3;
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Input, Resistor, Saadc};
 use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
@@ -81,9 +82,9 @@ impl DeviceManager {
         let mut led = LED.lock().await;
         led.blink_short(LedState::Purple).await;
 
-        interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
-        interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
-        interrupt::SPIM3::set_priority(Priority::P2);
+        SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
+        SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
+        SPIM3::set_priority(Priority::P2);
         info!("Successfully set interrupt priorities");
 
         // mosi 5
@@ -168,7 +169,7 @@ impl DeviceManager {
         })
     }
 
-    fn init_adc<const N: usize>(pins: [AnyInput; N], adc: SAADC) -> Saadc<'static, N> {
+    fn init_adc<const N: usize>(pins: [AnyInput; N], adc: peripherals::SAADC) -> Saadc<'static, N> {
         let config = saadc::Config::default();
 
         let mut channel_configs: [ChannelConfig; N] = unsafe { mem::zeroed() };
@@ -178,7 +179,7 @@ impl DeviceManager {
             channel_configs[index] = channel_cfg;
         }
 
-        interrupt::SAADC::set_priority(Priority::P3);
+        SAADC::set_priority(Priority::P3);
         let saadc = Saadc::new(adc, Irqs, config, channel_configs);
         saadc
     }

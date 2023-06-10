@@ -257,20 +257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embassy-cortex-m"
-version = "0.1.0"
-dependencies = [
- "atomic-polyfill 1.0.2",
- "cfg-if",
- "cortex-m",
- "critical-section",
- "embassy-executor 0.2.0",
- "embassy-hal-common",
- "embassy-macros 0.2.0",
- "embassy-sync",
-]
-
-[[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
 dependencies = [
@@ -288,18 +274,6 @@ dependencies = [
 [[package]]
 name = "embassy-executor"
 version = "0.2.0"
-dependencies = [
- "atomic-polyfill 1.0.2",
- "critical-section",
- "defmt",
- "embassy-macros 0.2.0",
- "futures-util",
- "static_cell",
-]
-
-[[package]]
-name = "embassy-executor"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acebf176f4622fd87c7200b568ee32d5b435e3a4d58e39355ce0837b45139eca"
 dependencies = [
@@ -307,7 +281,7 @@ dependencies = [
  "cortex-m",
  "critical-section",
  "defmt",
- "embassy-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-macros",
  "embassy-time",
  "futures-util",
  "static_cell",
@@ -321,17 +295,9 @@ version = "0.1.0"
 name = "embassy-hal-common"
 version = "0.1.0"
 dependencies = [
+ "cortex-m",
+ "critical-section",
  "num-traits",
-]
-
-[[package]]
-name = "embassy-macros"
-version = "0.2.0"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -355,9 +321,7 @@ dependencies = [
  "cortex-m-rt",
  "critical-section",
  "defmt",
- "embassy-cortex-m",
  "embassy-embedded-hal",
- "embassy-executor 0.2.0",
  "embassy-hal-common",
  "embassy-sync",
  "embassy-time",
@@ -1010,7 +974,7 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embassy-embedded-hal",
- "embassy-executor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-executor",
  "embassy-nrf",
  "embassy-sync",
  "embassy-time",

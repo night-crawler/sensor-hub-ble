@@ -78,6 +78,7 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
 
     epd.update_and_display_frame(&buf).await?;
     info!("Updated and displayed frame");
+    epd.sleep().await?;
 
 
     Ok(())
