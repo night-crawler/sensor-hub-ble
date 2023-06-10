@@ -78,6 +78,8 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
 
     epd.display(&buf).await?;
 
+    epd.clear(Color::White).await?;
+
     epd.sleep().await?;
 
     // epd.sleep().await?;
