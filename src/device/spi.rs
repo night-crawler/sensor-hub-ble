@@ -70,13 +70,15 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI3>, control_pins: &mut EpdCo
 
     info!("Clearing frame");
     epd.clear_frame().await?;
+    epd.display_frame().await?;
     info!("Cleared frame");
 
+    info!("Sleep 5");
     Timer::after(Duration::from_secs(5)).await;
+    info!("Sleep 5 done");
 
     // let buf_len = buffer_len(epd.width() as usize, epd.height() as usize);
-    let mut buf = [0u8; 4000];
-    buf.iter_mut().zip(IMG).for_each(|(dst, src)| *dst = src);
+    let mut buf = IMG.clone();
 
     epd.update_and_display_frame(&buf).await?;
     info!("Updated and displayed frame");

@@ -9,6 +9,7 @@
 //!
 
 use defmt::info;
+
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::{InternalWiAdditions, RefreshLut, WaveshareDisplay};
 use crate::common::device::error::CustomSpimError;
@@ -72,16 +73,15 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
 {
     async fn init(&mut self) -> Result<(), CustomSpimError> {
         // HW reset
-        self.interface.reset(2000, 10_000).await;
+        self.interface.reset(10_000, 10_000).await;
+        self.wait_until_idle().await?;
 
         if self.refresh == RefreshLut::Quick {
             self.set_vcom_register((-9).vcom()).await?;
-            self.wait_until_idle().await?;
-
             self.set_lut(Some(self.refresh)).await?;
 
             // Python code does this, not sure why
-            // self.cmd_with_data(spi, Command::WriteOtpSelection, &[0, 0, 0, 0, 0x40, 0, 0]).await?;
+            self.cmd_with_data(Command::WriteOtpSelection, &[0, 0, 0, 0, 0x40, 0, 0]).await?;
 
             // During partial update, clock/analog are not disabled between 2
             // updates.
@@ -89,7 +89,6 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                 DisplayUpdateControl2::new().enable_analog().enable_clock(),
             ).await?;
             self.command(Command::MasterActivation).await?;
-            self.wait_until_idle().await?;
 
             self.set_border_waveform(
                 BorderWaveForm {
@@ -99,10 +98,7 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
                 },
             ).await?;
         } else {
-            self.wait_until_idle().await?;
             self.command(Command::SwReset).await?;
-            self.wait_until_idle().await?;
-
             self.set_driver_output(
                 DriverOutput {
                     scan_is_linear: true,
@@ -116,17 +112,21 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
 
             self.set_gate_scan_start_position(0).await?;
             self.set_data_entry_mode(DataEntryModeIncr::XIncrYIncr, DataEntryModeDir::XDir).await?;
-            self.set_ram_area(0, 0, WIDTH - 1, HEIGHT- 1).await?;
+
+            // Use simple X/Y auto increase
+            self.set_ram_area(0, 0, WIDTH - 1, HEIGHT - 1).await?;
             self.set_ram_address_counters(0, 0).await?;
 
             self.set_border_waveform(
                 BorderWaveForm {
                     vbd: BorderWaveFormVbd::Gs,
-                    fix_level: BorderWaveFormFixLevel::Vss,
-                    gs_trans: BorderWaveFormGs::Lut3,
+                    fix_level: BorderWaveFormFixLevel::Vsh1,
+                    gs_trans: BorderWaveFormGs::Lut1,
                 },
             ).await?;
-            self.set_vcom_register((-30).vcom()).await?;
+
+            self.set_vcom_register((-21).vcom()).await?;
+
             self.set_gate_driving_voltage(190.gate_driving_decivolt()).await?;
             self.set_source_driving_voltage(
                 150.source_driving_decivolt(),
@@ -139,8 +139,6 @@ impl<I: DisplayInterface> InternalWiAdditions for Epd2in13<I>
             self.set_lut(Some(self.refresh)).await?;
         }
 
-        info!("Waiting for idle...");
-        self.wait_until_idle().await?;
         Ok(())
     }
 }
@@ -240,7 +238,6 @@ impl<I: DisplayInterface> WaveshareDisplay for Epd2in13<I>
             self.set_display_update_control_2(DisplayUpdateControl2::new().display()).await?;
         }
         self.command(Command::MasterActivation).await?;
-        self.wait_until_idle().await?;
 
         Ok(())
     }
@@ -256,22 +253,17 @@ impl<I: DisplayInterface> WaveshareDisplay for Epd2in13<I>
     }
 
     async fn clear_frame(&mut self) -> Result<(), CustomSpimError> {
-        info!("Clear frame");
         let color = self.background_color.get_byte_value();
 
         self.set_ram_area(0, 0, WIDTH - 1, HEIGHT - 1).await?;
-        info!("Clear frame: set_ram_area succeeded");
 
         self.set_ram_address_counters(0, 0).await?;
-        info!("Clear frame: set_ram_area and set_ram_address_counters succeeded");
 
         self.command(Command::WriteRam).await?;
-        info!("Clear frame: WriteRam succeeded");
         self.interface.send_data_x_times(
             color,
             buffer_len(WIDTH as usize, HEIGHT as usize) as u32,
         ).await?;
-        info!("Clear frame: data_x_times succeeded");
 
         // Always keep the base buffer equals to current if not doing partial refresh.
         if self.refresh == RefreshLut::Full {
@@ -470,7 +462,6 @@ impl<I: DisplayInterface> Epd2in13<I> {
         x: u32,
         y: u32,
     ) -> Result<(), CustomSpimError> {
-        self.wait_until_idle().await?;
         self.cmd_with_data(Command::SetRamXAddressCounter, &[(x >> 3) as u8]).await?;
 
         self.cmd_with_data(
@@ -482,7 +473,9 @@ impl<I: DisplayInterface> Epd2in13<I> {
 
     async fn command(&mut self, command: Command) -> Result<(), CustomSpimError> {
         self.interface.send_command(command).await?;
+        info!("Command: {}", command);
         self.wait_until_idle().await?;
+        info!("[OK] Command: {}", command);
         Ok(())
     }
 
@@ -492,7 +485,13 @@ impl<I: DisplayInterface> Epd2in13<I> {
         data: &[u8],
     ) -> Result<(), CustomSpimError> {
         self.interface.send_command_with_data(command, data).await?;
+        if data.len() < 100 {
+            info!("Command with data: {}, data: {:#04x}", command, data);
+        } else {
+            info!("Command with data: {}", command);
+        }
         self.wait_until_idle().await?;
+        info!("[OK] Command with data: {}", command);
         Ok(())
     }
 }

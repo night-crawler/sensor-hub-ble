@@ -38,8 +38,6 @@ impl<'a, I: SpimWrapper> EpdControls<'a, I> {
 impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
     async fn send_command<T: Command>(&mut self, command: T) -> Result<(), CustomSpimError> {
         self.dc.set_low();
-
-        // Transfer the command over spi
         self.write(&[command.address()]).await
     }
 
