@@ -1,10 +1,10 @@
+use core::marker::PhantomData;
 use defmt::info;
 use embassy_time::{Duration, Timer};
 
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
 use crate::common::device::epd::graphics::Display;
 use crate::common::device::epd::interface::DisplayInterface;
-use crate::common::device::error::CustomSpimError;
 
 use self::color::Color;
 use self::command::{
@@ -33,7 +33,7 @@ pub const HEIGHT: u32 = 250;
 const IS_BUSY_LOW: bool = false;
 
 /// Epd2in13 (V2) driver
-pub struct Epd2in13<I: DisplayInterface> {
+pub struct Epd2in13<E, I: DisplayInterface<E>> {
     /// Connection Interface
     interface: I,
 
@@ -41,24 +41,26 @@ pub struct Epd2in13<I: DisplayInterface> {
 
     /// Background Color
     background_color: Color,
+    phantom_data: PhantomData<E>
 }
 
-impl<I: DisplayInterface> Epd2in13<I> {
+impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
     pub fn new(interface: I) -> Self {
         Self {
             interface,
             sleep_mode: DeepSleepMode::Mode2,
             background_color: Color::White,
+            phantom_data: Default::default()
         }
     }
-    async fn send_command(&mut self, command: Command) -> Result<(), CustomSpimError> {
+    async fn send_command(&mut self, command: Command) -> Result<(), E> {
         info!("Executing command {:?}", command);
         self.interface.send_command(command).await?;
         info!("Executed command {:?}: DONE", command);
         Ok(())
     }
 
-    async fn send_data(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
+    async fn send_data(&mut self, data: &[u8]) -> Result<(), E> {
         info!("Sending data");
         self.interface.send_data(data).await?;
         info!("Data sent");
@@ -69,7 +71,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         &mut self,
         command: Command,
         data: &[u8],
-    ) -> Result<(), CustomSpimError> {
+    ) -> Result<(), E> {
         info!("Executing command with data {:?}", command);
         self.interface.send_command_with_data(command, data).await?;
         info!("Executed command with data {:?}: DONE", command);
@@ -80,33 +82,33 @@ impl<I: DisplayInterface> Epd2in13<I> {
         self.interface.wait_until_idle(IS_BUSY_LOW).await;
     }
 
-    pub async fn reset(&mut self) -> Result<(), CustomSpimError> {
+    pub async fn reset(&mut self) -> Result<(), E> {
         self.interface.reset(0, 0).await;
         self.wait_until_idle().await;
         Ok(())
     }
 
-    pub async fn turn_on_display(&mut self) -> Result<(), CustomSpimError> {
+    pub async fn turn_on_display(&mut self) -> Result<(), E> {
         self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC7]).await?;
         self.send_command(Command::MasterActivation).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
-    pub async fn turn_on_display_part(&mut self) -> Result<(), CustomSpimError> {
+    pub async fn turn_on_display_part(&mut self) -> Result<(), E> {
         self.send_command_with_data(Command::DisplayUpdateControl2, &[0x0f]).await?;
         self.send_command(Command::MasterActivation).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
-    pub async fn lut(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
+    pub async fn lut(&mut self, data: &[u8]) -> Result<(), E> {
         self.send_command_with_data(Command::WriteLutRegister, data).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
-    pub async fn set_lut(&mut self, lut: &[u8]) -> Result<(), CustomSpimError> {
+    pub async fn set_lut(&mut self, lut: &[u8]) -> Result<(), E> {
         self.lut(lut).await?;
 
         // 0x22,0x17,0x41,0x00,0x32,0x36,
@@ -118,7 +120,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn set_window(&mut self, x_start: u32, y_start: u32, x_end: u32, y_end: u32) -> Result<(), CustomSpimError> {
+    pub async fn set_window(&mut self, x_start: u32, y_start: u32, x_end: u32, y_end: u32) -> Result<(), E> {
         self.send_command_with_data(Command::SetRamXAddressStartEndPosition, &[
             ((x_start >> 3) & 0xFF) as u8,
             ((x_end >> 3) & 0xFF) as u8
@@ -134,7 +136,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn set_cursor(&mut self, x: u32, y: u32) -> Result<(), CustomSpimError> {
+    pub async fn set_cursor(&mut self, x: u32, y: u32) -> Result<(), E> {
         self.send_command_with_data(Command::SetRamXAddressCounter, &[(x & 0xFF) as u8]).await?;
 
         self.send_command_with_data(Command::SetRamYAddressCounter, &[
@@ -145,7 +147,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn init(&mut self) -> Result<(), CustomSpimError> {
+    pub async fn init(&mut self) -> Result<(), E> {
         self.reset().await?;
 
         self.wait_until_idle().await;
@@ -176,7 +178,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn display(&mut self, image: &[u8]) -> Result<(), CustomSpimError> {
+    pub async fn display(&mut self, image: &[u8]) -> Result<(), E> {
         self.send_command_with_data(Command::WriteRam, image).await?;
         // self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         // self.set_cursor(0, 0).await?;
@@ -187,7 +189,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn display_partial(&mut self, image: &[u8]) -> Result<(), CustomSpimError> {
+    pub async fn display_partial(&mut self, image: &[u8]) -> Result<(), E> {
         self.reset().await?;
 
         self.set_lut(&LUT_PARTIAL_UPDATE).await?;
@@ -220,7 +222,7 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn display_part_base_image(&mut self, image: &[u8]) -> Result<(), CustomSpimError> {
+    pub async fn display_part_base_image(&mut self, image: &[u8]) -> Result<(), E> {
         self.send_command_with_data(Command::WriteRam, image).await?;
 
         self.send_command_with_data(Command::WriteRamRed, image).await?;
@@ -229,14 +231,14 @@ impl<I: DisplayInterface> Epd2in13<I> {
         Ok(())
     }
 
-    pub async fn clear(&mut self, color: Color) -> Result<(), CustomSpimError> {
+    pub async fn clear(&mut self, color: Color) -> Result<(), E> {
         self.send_command(Command::WriteRam).await?;
         self.interface.send_data_x_times(color.get_byte_value(), 4000).await?;
         self.turn_on_display().await?;
         Ok(())
     }
 
-    pub async fn sleep(&mut self) -> Result<(), CustomSpimError> {
+    pub async fn sleep(&mut self) -> Result<(), E> {
         self.send_command_with_data(Command::DeepSleepMode, &[0x01]).await?;
         Ok(())
     }

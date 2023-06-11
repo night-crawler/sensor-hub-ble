@@ -2,9 +2,9 @@ use embassy_sync::blocking_mutex::raw::RawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use thiserror_no_std::Error;
-
+use crate::common::compat::i2c::I2CWrapper;
 use crate::common::device::error::CustomI2CError;
-use crate::common::device::ext::i2c::I2CWrapper;
+
 
 pub(crate) const BME280_I2C_ADDR_PRIMARY: u8 = 0x76;
 pub(crate) const BME280_I2C_ADDR_SECONDARY: u8 = 0x77;
@@ -81,13 +81,13 @@ macro_rules! set_bits {
 
 
 
-pub(crate) struct Bme280<'a, I: I2CWrapper, R: RawMutex> {
+pub(crate) struct Bme280<'a, I: I2CWrapper<CustomI2CError>, R: RawMutex> {
     address: u8,
     interface: &'a Mutex<R, I>,
     calibration: Option<CalibrationData>,
 }
 
-impl<'a, I: I2CWrapper, R: RawMutex> Bme280<'a, I, R> {
+impl<'a, I: I2CWrapper<CustomI2CError>, R: RawMutex> Bme280<'a, I, R> {
     pub fn new(interface: &'a Mutex<R, I>, address: u8) -> Self {
         Self {
             address,

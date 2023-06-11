@@ -1,22 +1,23 @@
+use core::marker::PhantomData;
 use defmt::info;
 use embassy_nrf::gpio::{AnyPin, Input, Output};
 use embassy_time::{Duration, Timer};
+use crate::common::compat::spi::SpimWrapper;
 
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::Command;
-use crate::common::device::error::CustomSpimError;
-use crate::common::device::ext::spi::SpimWrapper;
 
-pub(crate) struct EpdControls<'a, I: SpimWrapper> {
+pub(crate) struct EpdControls<'a, E, I: SpimWrapper<E>> {
     interface: &'a mut I,
     busy: Input<'a, AnyPin>,
     cs: Output<'a, AnyPin>,
     dc: Output<'a, AnyPin>,
     rst: Output<'a, AnyPin>,
-    delay_us: u64
+    delay_us: u64,
+    phantom_data: PhantomData<E>
 }
 
-impl<'a, I: SpimWrapper> EpdControls<'a, I> {
+impl<'a, E, I: SpimWrapper<E>> EpdControls<'a, E, I> {
     pub(crate) fn new(
         interface: &'a mut I,
         busy: Input<'a, AnyPin>,
@@ -30,31 +31,32 @@ impl<'a, I: SpimWrapper> EpdControls<'a, I> {
             cs,
             dc,
             rst,
-            delay_us: 10_000
+            delay_us: 10_000,
+            phantom_data: Default::default(),
         }
     }
 }
 
-impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
-    async fn send_command<T: Command>(&mut self, command: T) -> Result<(), CustomSpimError> {
+impl<'a, E, I: SpimWrapper<E>> DisplayInterface<E> for EpdControls<'a, E, I> {
+    async fn send_command<T: Command>(&mut self, command: T) -> Result<(), E> {
         self.dc.set_low();
         self.write(&[command.address()]).await?;
         Ok(())
     }
 
-    async fn send_data(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
+    async fn send_data(&mut self, data: &[u8]) -> Result<(), E> {
         self.dc.set_high();
         self.write(data).await?;
         Ok(())
     }
 
-    async fn send_command_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), CustomSpimError> {
+    async fn send_command_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), E> {
         self.send_command(command).await?;
         self.send_data(data).await?;
         Ok(())
     }
 
-    async fn send_data_x_times(&mut self, val: u8, repetitions: u32) -> Result<(), CustomSpimError> {
+    async fn send_data_x_times(&mut self, val: u8, repetitions: u32) -> Result<(), E> {
         self.dc.set_high();
         // Transfer data (u8) over spi
         for _ in 0..repetitions {
@@ -63,7 +65,7 @@ impl<'a, I: SpimWrapper> DisplayInterface for EpdControls<'a, I> {
         Ok(())
     }
 
-    async fn write(&mut self, data: &[u8]) -> Result<(), CustomSpimError> {
+    async fn write(&mut self, data: &[u8]) -> Result<(), E> {
         self.cs.set_low();
         Timer::after(Duration::from_micros(1)).await;
 

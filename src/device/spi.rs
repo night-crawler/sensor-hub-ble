@@ -9,6 +9,7 @@ use embedded_graphics_core::Drawable;
 use embedded_graphics_core::prelude::{DrawTarget, Point};
 use rclite::Arc;
 
+use crate::common::bitbang;
 use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
 use crate::common::device::epd::{Display2in13, Epd2in13};
@@ -45,6 +46,9 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
     config.mode = spi_pins.config.mode;
     config.orc = spi_pins.config.orc;
 
+
+    // drop(spi);
+
     let mut spi: spim::Spim<SPI2> = spim::Spim::new_txonly(
         &mut spi_pins.spim,
         Irqs,
@@ -78,16 +82,16 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
     let mut display = Display2in13::default();
     display.clear(Color::White).unwrap();
     display.set_rotation(DisplayRotation::Rotate0);
-    draw_text(&mut display, "Rotate 0!", 5, 50);
+    draw_text(&mut display, "Rotate 00000!", 5, 50);
 
     display.set_rotation(DisplayRotation::Rotate90);
-    draw_text(&mut display, "Rotate 90!", 5, 50);
+    draw_text(&mut display, "Rotate 90000!", 5, 50);
 
     display.set_rotation(DisplayRotation::Rotate180);
-    draw_text(&mut display, "Rotate 180!", 5, 50);
+    draw_text(&mut display, "Rotate 180000!", 5, 50);
 
     display.set_rotation(DisplayRotation::Rotate270);
-    draw_text(&mut display, "Rotate 270!", 5, 50);
+    draw_text(&mut display, "LOL 270!", 5, 50);
 
     epd.display(&display.buffer()).await?;
 

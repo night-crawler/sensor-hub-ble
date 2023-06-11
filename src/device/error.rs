@@ -34,4 +34,7 @@ pub enum CustomI2CError {
 pub enum CustomSpimError {
     #[error("SPI Error")]
     SpimError(#[from] spim::Error),
+
+    #[error("Bitbang")]
+    BitbangSpimError(#[from] crate::common::bitbang::spi::Error)
 }
