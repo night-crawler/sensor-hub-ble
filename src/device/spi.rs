@@ -9,7 +9,6 @@ use embedded_graphics_core::Drawable;
 use embedded_graphics_core::prelude::{DrawTarget, Point};
 use rclite::Arc;
 
-use crate::common::bitbang;
 use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
 use crate::common::device::epd::{Display2in13, Epd2in13};
