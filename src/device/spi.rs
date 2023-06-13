@@ -20,6 +20,8 @@ use crate::common::device::error::CustomSpimError;
 #[embassy_executor::task]
 pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI2>>>, control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>) {
     loop {
+        Timer::after(Duration::from_secs(150)).await;
+
         info!("EPD task loop started");
         let mut spi_pins = spi_pins.lock().await;
         let mut control_pins = control_pins.lock().await;
@@ -35,7 +37,7 @@ pub(crate) async fn epd_task(spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<S
             }
         }
 
-        Timer::after(Duration::from_secs(5)).await;
+        Timer::after(Duration::from_secs(50)).await;
     }
 }
 

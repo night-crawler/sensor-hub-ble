@@ -18,6 +18,7 @@ use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use rclite::Arc;
+use crate::common::bitbang;
 
 use crate::common::device::error::DeviceError;
 use crate::common::device::led_animation::{LED, led_animation_task, LedState, LedStateAnimation};
@@ -37,6 +38,13 @@ pub(crate) struct I2CPins<T> {
     pub(crate) config: twim::Config,
 }
 
+pub(crate) struct BitbangI2CPins {
+    pub(crate) sda: AnyPin,
+    pub(crate) scl: AnyPin,
+    pub(crate) config: bitbang::i2c::Config,
+}
+
+
 pub(crate) struct SpiTxPins<T> {
     pub(crate) spim: T,
     pub(crate) sck: AnyPin,
@@ -53,15 +61,15 @@ pub(crate) struct EpdControlPins {
 
 pub(crate) struct DeviceManager {
     pub(crate) spawner: Spawner,
-    pub(crate) saadc: Saadc<'static, 5>,
+    pub(crate) saadc: Saadc<'static, 8>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
-    // pub(crate) i2c1: I2CPins<TWISPI1>,
     pub(crate) spi2: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
     pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
+    pub(crate) bbi2c0: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
+    pub(crate) bbi2c_exp: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
 }
 
 fn prepare_nrf_peripherals() -> Peripherals {
-    // spim::In
     let mut config = embassy_nrf::config::Config::default();
     config.hfclk_source = HfclkSource::ExternalXtal;
     config.lfclk_source = LfclkSource::ExternalXtal;
@@ -90,15 +98,6 @@ impl DeviceManager {
         SPIM2_SPIS2_SPI2::set_priority(Priority::P3);
         info!("Successfully set interrupt priorities");
 
-        // mosi 5
-        // sclk 6
-
-        // let mut a: spim::Spim<SPI3> = spim::Spim::new_txonly(board.SPI3, Irqs,  board.P1_15, board.P1_14, spim_conf);
-        // let busy = embassy_nrf::gpio::Input::new(board.P1_13, Pull::None);  // 1
-        // let cs = Output::new(board.P1_12.degrade(), Level::High,OutputDrive::Standard);  // 4
-        // let dc = Output::new(board.P1_11, Level::High,OutputDrive::Standard);  // 3
-        // let rst = Output::new(board.P0_05, Level::High,OutputDrive::Standard);  // 2
-
         let mut spim_conf = spim::Config::default();
         spim_conf.frequency = spim::Frequency::K500;
 
@@ -118,29 +117,28 @@ impl DeviceManager {
 
         led.blink_short(LedState::Purple).await;
 
-        // let i2c0 = I2CPins {
-        //     twim: board.TWISPI0,
-        //     sda: board.P1_11.degrade(),
-        //     scl: board.P1_12.degrade(),
-        //     config: Default::default(),
-        // };
-        //
-        // let i2c1 = I2CPins {
-        //     twim: board.TWISPI1,
-        //     sda: board.P1_13.degrade(),
-        //     scl: board.P1_14.degrade(),
-        //     config: Default::default(),
-        // };
+        let bbi2c0 = BitbangI2CPins {
+            scl: board.P1_11.degrade(),
+            sda: board.P1_12.degrade(),
+            config: Default::default()
+        };
 
+        let bbi2c_exp = BitbangI2CPins {
+            scl: board.P1_06.degrade(),
+            sda: board.P1_04.degrade(),
+            config: Default::default()
+        };
 
         let saadc = Self::init_adc(
             [
-                board.P0_02.degrade_saadc(),
-                board.P0_03.degrade_saadc(),
-                board.P0_28.degrade_saadc(),
-                board.P0_29.degrade_saadc(),
-                board.P0_04.degrade_saadc(),
-                // board.P0_05.degrade_saadc()
+                board.P0_02.degrade_saadc(),  // AIN0
+                board.P0_03.degrade_saadc(),  // AIN1 AIN.BAT
+                board.P0_04.degrade_saadc(),  // AIN2
+                board.P0_05.degrade_saadc(),  // AIN3
+                board.P0_28.degrade_saadc(),  // AIN4
+                board.P0_29.degrade_saadc(),  // AIN5
+                board.P0_30.degrade_saadc(),  // AIN6
+                board.P0_31.degrade_saadc(),  // AIN7
             ],
             board.SAADC,
         );
@@ -156,12 +154,12 @@ impl DeviceManager {
         led.blink_short(LedState::Green).await;
 
         Ok(Self {
-            // i2c0,
-            // i2c1,
             epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
             spi2: Arc::new(Mutex::new(spi_tx_pins)),
             spawner,
             saadc,
+            bbi2c0: Arc::new(Mutex::new(bbi2c0)),
+            bbi2c_exp: Arc::new(Mutex::new(bbi2c_exp)),
         })
     }
 

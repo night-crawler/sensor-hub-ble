@@ -1,10 +1,11 @@
-use embassy_sync::blocking_mutex::raw::RawMutex;
-use embassy_sync::mutex::Mutex;
+use core::marker::PhantomData;
+
 use embassy_time::{Duration, Timer};
 use thiserror_no_std::Error;
+
+use crate::common::bitbang;
 use crate::common::compat::i2c::I2CWrapper;
 use crate::common::device::error::CustomI2CError;
-
 
 pub(crate) const BME280_I2C_ADDR_PRIMARY: u8 = 0x76;
 pub(crate) const BME280_I2C_ADDR_SECONDARY: u8 = 0x77;
@@ -81,29 +82,28 @@ macro_rules! set_bits {
 
 
 
-pub(crate) struct Bme280<'a, I: I2CWrapper<CustomI2CError>, R: RawMutex> {
+pub(crate) struct Bme280<'a, E, I: I2CWrapper<E>> where Bme280Error: From<E> {
     address: u8,
-    interface: &'a Mutex<R, I>,
+    interface: &'a mut I,
     calibration: Option<CalibrationData>,
+    phantom_data: PhantomData<E>,
 }
 
-impl<'a, I: I2CWrapper<CustomI2CError>, R: RawMutex> Bme280<'a, I, R> {
-    pub fn new(interface: &'a Mutex<R, I>, address: u8) -> Self {
+impl<'a, E, I: I2CWrapper<E>> Bme280<'a, E, I> where Bme280Error: From<E> {
+    pub fn new(interface: &'a mut I, address: u8) -> Self {
         Self {
             address,
             interface,
             calibration: None,
+            phantom_data: Default::default(),
         }
     }
 
-
-    /// Create a new BME280 struct using the primary I²C address `0x76`
-    pub fn new_primary(interface: &'a Mutex<R, I>) -> Self {
+    pub fn new_primary(interface: &'a mut I) -> Self {
         Self::new(interface, BME280_I2C_ADDR_PRIMARY)
     }
 
-    /// Create a new BME280 struct using the secondary I²C address `0x77`
-    pub fn new_secondary(interface: &'a Mutex<R, I>) -> Self {
+    pub fn new_secondary(interface: &'a mut I) -> Self {
         Self::new(interface, BME280_I2C_ADDR_SECONDARY)
     }
 
@@ -122,26 +122,26 @@ impl<'a, I: I2CWrapper<CustomI2CError>, R: RawMutex> Bme280<'a, I, R> {
         if chip_id == BME280_CHIP_ID || chip_id == BMP280_CHIP_ID {
             Ok(())
         } else {
-            Err(Bme280Error::UnsupportedChip)
+            Err(Bme280Error::UnsupportedChip(chip_id))
         }
     }
 
-    pub async fn write_register(&self, register: u8, payload: u8) -> Result<(), Bme280Error> {
-        self.interface.lock().await.write(self.address, &[register, payload]).await?;
+    pub async fn write_register(&mut self, register: u8, payload: u8) -> Result<(), Bme280Error> {
+        self.interface.write(self.address, &[register, payload]).await?;
         Ok(())
     }
 
-    pub async fn read_register(&self, register: u8) -> Result<u8, Bme280Error> {
+    pub async fn read_register(&mut self, register: u8) -> Result<u8, Bme280Error> {
         let mut buf = [0u8; 1];
-        self.interface.lock().await.write_read(self.address, &[register], &mut buf).await?;
+        self.interface.write_read(self.address, &[register], &mut buf).await?;
         Ok(buf[0])
     }
 
-    pub async fn read_chip_id(&self) -> Result<u8, Bme280Error> {
+    pub async fn read_chip_id(&mut self) -> Result<u8, Bme280Error> {
         self.read_register(BME280_CHIP_ID_ADDR).await
     }
 
-    pub async fn soft_reset(&self) -> Result<(), Bme280Error> {
+    pub async fn soft_reset(&mut self) -> Result<(), Bme280Error> {
         self.write_register(BME280_RESET_ADDR, BME280_SOFT_RESET_CMD).await?;
         Timer::after(Duration::from_millis(2)).await;  // startup 2ms
         Ok(())
@@ -159,26 +159,26 @@ impl<'a, I: I2CWrapper<CustomI2CError>, R: RawMutex> Bme280<'a, I, R> {
     }
 
     pub async fn read_data(
-        &self,
+        &mut self,
         register: u8,
     ) -> Result<[u8; BME280_P_T_H_DATA_LEN], Bme280Error> {
         let mut data = [0; BME280_P_T_H_DATA_LEN];
-        self.interface.lock().await
+        self.interface
             .write_read(self.address, &[register], &mut data).await?;
         Ok(data)
     }
 
-    pub async fn read_pt_calib_data(&self, register: u8) -> Result<[u8; BME280_P_T_CALIB_DATA_LEN], Bme280Error> {
+    pub async fn read_pt_calib_data(&mut self, register: u8) -> Result<[u8; BME280_P_T_CALIB_DATA_LEN], Bme280Error> {
         let mut data = [0; BME280_P_T_CALIB_DATA_LEN];
-        self.interface.lock().await
+        self.interface
             .write_read(self.address, &[register], &mut data)
             .await?;
         Ok(data)
     }
 
-    pub async fn read_h_calib_data(&self, register: u8) -> Result<[u8; BME280_H_CALIB_DATA_LEN], Bme280Error> {
+    pub async fn read_h_calib_data(&mut self, register: u8) -> Result<[u8; BME280_H_CALIB_DATA_LEN], Bme280Error> {
         let mut data = [0; BME280_H_CALIB_DATA_LEN];
-        self.interface.lock().await
+        self.interface
             .write_read(self.address, &[register], &mut data)
             .await?;
         Ok(data)
@@ -599,7 +599,10 @@ pub enum Bme280Error {
     CompensationFailed,
 
     #[error("I²C error")]
-    Bus(#[from] CustomI2CError),
+    BitbangBus(#[from] bitbang::i2c::Error),
+
+    #[error("I²C error")]
+    NativeBus(#[from] CustomI2CError),
 
     #[error("Failed to parse sensor data")]
     InvalidData,
@@ -608,7 +611,7 @@ pub enum Bme280Error {
     NoCalibrationData,
 
     #[error("Chip ID doesn't match expected value")]
-    UnsupportedChip,
+    UnsupportedChip(u8),
 
     #[error("Delay error")]
     Delay,

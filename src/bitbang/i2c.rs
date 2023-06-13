@@ -1,4 +1,4 @@
-use embassy_nrf::gpio::{AnyPin, Flex, Output, Pin as GpioPin};
+use embassy_nrf::gpio::{AnyPin, Flex, Output, Pin as GpioPin, Pull};
 use embassy_time::{Duration, Timer};
 
 use crate::common::compat::i2c::I2CWrapper;
@@ -8,6 +8,15 @@ pub struct Config {
     pub delay_duration: Duration,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            delay_duration: Duration::from_hz(10000)
+        }
+    }
+}
+
+#[derive(Debug, defmt::Format)]
 pub enum Error {
     NoAck,
     InvalidData,
@@ -27,7 +36,7 @@ impl<'d, SCL, SDA> I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd 
         sda: Flex<'d, SDA>,
         config: Config,
     ) -> Self {
-        let mut i2c = Self {
+        let i2c = Self {
             scl,
             sda,
             config,
@@ -87,7 +96,7 @@ impl<'d, SCL, SDA> I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd 
             }
 
             self.scl.set_low();
-            self.wait();
+            self.wait().await;
         }
 
         if should_send_ack {
@@ -160,7 +169,7 @@ impl<'d, SCL, SDA> I2CWrapper<Error> for I2C<'d, SCL, SDA> where SCL: GpioPin + 
         }
 
         // ST
-        self.i2c_start();
+        self.i2c_start().await;
 
         // SAD + W
         self.i2c_write_byte((address << 1) | 0x0).await;

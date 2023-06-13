@@ -8,7 +8,6 @@ pub(crate) mod i2c;
 pub(crate) mod bme280;
 pub(crate) mod ble_debugger;
 pub(crate) mod config;
-pub(crate) mod ble_alloc;
 pub(crate) mod ext;
 pub(crate) mod epd;
 pub(crate) mod spi;

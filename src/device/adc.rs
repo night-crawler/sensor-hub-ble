@@ -12,10 +12,10 @@ use crate::impl_set_many;
 
 pub static ADC_TIMEOUT: AtomicU32 = AtomicU32::new(1000);
 
-pub(crate) async fn notify_adc_value<'a>(saadc: &'a mut Saadc<'_, 6>, server: &'a BleServer, connection: &'a Connection) {
+pub(crate) async fn notify_adc_value<'a, const N: usize>(saadc: &'a mut Saadc<'_, N>, server: &'a BleServer, connection: &'a Connection) {
     let mut count = 0;
-    let mut bufs = [[[0; 6]; 200]; 2];
-    let mut accum: [f32; 6] = [0f32; 6];
+    let mut bufs = [[[0; N]; 200]; 2];
+    let mut accum: [f32; N] = [0f32; N];
 
     saadc.calibrate().await;
 

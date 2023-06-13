@@ -4,7 +4,7 @@ use embassy_time::{Duration, Timer};
 
 use crate::common::compat::spi::SpimWrapper;
 
-#[derive(Debug, defmt::Format, Clone, Copy)]
+#[derive(Debug, defmt::Format)]
 pub enum Error {
     Bus,
     NoData,
