@@ -1,12 +1,11 @@
 use core::ops::DerefMut;
-use defmt::info;
 
+use defmt::info;
 use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use futures::{FutureExt, join};
-use futures::select_biased;
+use futures::join;
 use nrf_softdevice::ble::Connection;
 use rclite::Arc;
 
@@ -20,6 +19,7 @@ use crate::common::device::bme280;
 use crate::common::device::bme280::Bme280Error;
 use crate::common::device::device_manager::BitbangI2CPins;
 use crate::common::device::lis2h12::{Lis2dh12, SlaveAddr};
+use crate::common::device::lis2h12::reg::{FifoMode, FullScale, Odr};
 
 #[embassy_executor::task]
 pub(crate) async fn read_i2c0_task(i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>) {
@@ -47,6 +47,8 @@ async fn read_bme_task(
 ) -> Result<(), Bme280Error> {
     loop {
         let measurements = {
+            Timer::after(Duration::from_millis(100000000)).await;
+
             let mut i2c_pins = i2c_pins.lock().await;
             let i2c_pins = i2c_pins.deref_mut();
             let mut sda = Flex::new(&mut i2c_pins.sda);
@@ -94,7 +96,7 @@ async fn read_bme_task(
 async fn read_accel_task(
     i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     server: &BleServer,
-) -> Result<(), accelerometer::Error<bitbang::i2c::Error>>{
+) -> Result<(), accelerometer::Error<bitbang::i2c::Error>> {
     loop {
         {
             let mut i2c_pins = i2c_pins.lock().await;
@@ -110,15 +112,49 @@ async fn read_accel_task(
 
             let mut lis = Lis2dh12::new(i2c, SlaveAddr::Default).await?;
             info!("Initialized lis");
+            lis.reset().await?;
+
+            lis.set_odr(Odr::Hz50).await?;
+            info!("Set ODR");
+
+            lis.set_bdu(true).await?;
+            info!("Set BDU");
+
+            lis.set_fs(FullScale::G2).await?;
 
             lis.set_mode(crate::common::device::lis2h12::reg::Mode::Normal).await?;
             info!("Set mode");
-        }
 
+            lis.enable_axis((true, true, true)).await?;
+            info!("Enabled all axis");
+
+            lis.enable_temp(true).await?;
+            info!("Enabled temp");
+
+            lis.enable_fifo(true).await?;
+            info!("Fifo enabled");
+
+            lis.set_fm(FifoMode::Bypass).await?;
+
+            info!("status: {:?}", lis.get_status().await?);
+
+            info!("temp status: {}", lis.get_temp_status().await?);
+
+            info!("Sample rate: {}", lis.sample_rate().await?);
+
+
+
+            for _ in 0..10 {
+                let a = lis.accel_norm().await?;
+                info!("Accel: ({}, {}, {})", a.x, a.y, a.z);
+                info!("Temp out: {}", lis.get_temp_outf().await?);
+                info!("Stored samples: {}", lis.get_stored_samples().await?);
+
+            }
+        }
 
         Timer::after(Duration::from_millis(1000)).await;
     }
-
 }
 
 

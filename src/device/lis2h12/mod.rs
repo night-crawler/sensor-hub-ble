@@ -4,10 +4,7 @@ use core::marker::PhantomData;
 use accelerometer::{Accelerometer, Error, ErrorKind, RawAccelerometer};
 use accelerometer::vector::F32x3;
 use accelerometer::vector::I16x3;
-// use cast::{f32, i16};
-// use cast::u16;
 use num_traits::FromPrimitive;
-
 
 use crate::common::compat::i2c::I2CWrapper;
 use crate::common::device::lis2h12::reg::*;
@@ -34,6 +31,7 @@ impl SlaveAddr {
 /// Data status structure,
 /// decoded from STATUS_REG register
 #[derive(Debug)]
+#[derive(defmt::Format)]
 pub struct DataStatus {
     /// ZYXOR bit
     pub zyxor: bool,
@@ -53,7 +51,7 @@ pub struct Lis2dh12<I2C, E> {
     addr: u8,
     /// Current full-scale
     fs: FullScale,
-    phantom_data: PhantomData<E>
+    phantom_data: PhantomData<E>,
 }
 
 /// Interrupt setting and status
@@ -73,7 +71,7 @@ impl<I2C, E> Lis2dh12<I2C, E>
             i2c,
             addr: addr.addr(),
             fs: FullScale::G2,
-            phantom_data: PhantomData::default()
+            phantom_data: PhantomData::default(),
         };
 
         // Ensure we have the correct device ID
@@ -658,68 +656,65 @@ impl<I2C, E> Lis2dh12<I2C, E>
 }
 
 // impl<I2C, E> RawAccelerometer<I16x3> for Lis2dh12<I2C, E>
-//     where
-//         I2C: I2CWrapper<E>,
-//         E: Debug,
-// {
-//     type Error = E;
-//
-//     /// Get acceleration reading from the accelerometer
-//     fn accel_raw(&mut self) -> Result<I16x3, Error<E>> {
-//         let mut buf = [0u8; 6];
-//         self.read_regs(Register::OUT_X_L, &mut buf)?;
-//
-//         Ok(I16x3::new(
-//             (cast::u16(buf[0]) + (cast::u16(buf[1]) << 8)) as i16,
-//             (cast::u16(buf[2]) + (cast::u16(buf[3]) << 8)) as i16,
-//             (cast::u16(buf[4]) + (cast::u16(buf[5]) << 8)) as i16,
-//         ))
-//     }
-// }
+impl<I2C, E> Lis2dh12<I2C, E>
+    where
+        I2C: I2CWrapper<E>,
+        E: Debug {
+    /// Get acceleration reading from the accelerometer
+    pub async fn accel_raw(&mut self) -> Result<I16x3, Error<E>> {
+        let mut buf = [0u8; 6];
+        self.read_regs(Register::OUT_X_L, &mut buf).await?;
+
+        Ok(I16x3::new(
+            (cast::u16(buf[0]) + (cast::u16(buf[1]) << 8)) as i16,
+            (cast::u16(buf[2]) + (cast::u16(buf[3]) << 8)) as i16,
+            (cast::u16(buf[4]) + (cast::u16(buf[5]) << 8)) as i16,
+        ))
+    }
+}
 
 // impl<I2C, E> Accelerometer for Lis2dh12<I2C, E>
-//     where
-//         I2C: I2CWrapper<E>,
-//         E: Debug,
-// {
-//     type Error = E;
-//
-//     /// Get normalized ±g reading from the accelerometer
-//     fn accel_norm(&mut self) -> Result<F32x3, Error<E>> {
-//         let acc_raw: I16x3 = self.accel_raw()?;
-//
-//         Ok(F32x3::new(
-//             self.fs.convert_out_i16tof32(acc_raw.x),
-//             self.fs.convert_out_i16tof32(acc_raw.y),
-//             self.fs.convert_out_i16tof32(acc_raw.z),
-//         ))
-//     }
-//
-//     /// Get sample rate of accelerometer in Hz
-//     fn sample_rate(&mut self) -> Result<f32, Error<Self::Error>> {
-//         let creg1 = self.read_reg(Register::CTRL_REG1)?;
-//         let rate = match FromPrimitive::from_u8(creg1 >> 4) {
-//             Some(Odr::PowerDown) => 0.0,
-//             Some(Odr::Hz1) => 1.0,
-//             Some(Odr::Hz10) => 10.0,
-//             Some(Odr::Hz25) => 25.0,
-//             Some(Odr::Hz50) => 50.0,
-//             Some(Odr::Hz100) => 100.0,
-//             Some(Odr::Hz200) => 200.0,
-//             Some(Odr::Hz400) => 400.0,
-//             Some(Odr::HighRate0) => 1620.0,
-//             Some(Odr::HighRate1) => {
-//                 if creg1 & LPen == 0 {
-//                     1344.0
-//                 } else {
-//                     5376.0
-//                 }
-//             }
-//             None => 0.0,
-//         };
-//         Ok(rate)
-//     }
-// }
+impl<I2C, E> Lis2dh12<I2C, E>
+    where
+        I2C: I2CWrapper<E>,
+        E: Debug {
+    /// Get normalized ±g reading from the accelerometer
+    pub async fn accel_norm(&mut self) -> Result<F32x3, Error<E>> {
+        let acc_raw: I16x3 = self.accel_raw().await?;
+
+        Ok(F32x3::new(
+            self.fs.convert_out_i16tof32(acc_raw.x),
+            self.fs.convert_out_i16tof32(acc_raw.y),
+            self.fs.convert_out_i16tof32(acc_raw.z),
+        ))
+    }
+
+    /// Get sample rate of accelerometer in Hz
+    pub async fn sample_rate(&mut self) -> Result<f32, Error<E>> {
+        let creg1 = self.read_reg(Register::CTRL_REG1).await?;
+        let rate = match FromPrimitive::from_u8(creg1 >> 4) {
+            Some(Odr::PowerDown) => 0.0,
+            Some(Odr::Hz1) => 1.0,
+            Some(Odr::Hz10) => 10.0,
+            Some(Odr::Hz25) => 25.0,
+            Some(Odr::Hz50) => 50.0,
+            Some(Odr::Hz100) => 100.0,
+            Some(Odr::Hz200) => 200.0,
+            Some(Odr::Hz400) => 400.0,
+            Some(Odr::HighRate0) => 1620.0,
+            Some(Odr::HighRate1) => {
+                if creg1 & LPen == 0 {
+                    1344.0
+                } else {
+                    5376.0
+                }
+            }
+            None => 0.0,
+        };
+        Ok(rate)
+    }
+}
+
 
 impl<'a, REG, I2C, E> Int<'a, REG, I2C, E>
     where
