@@ -11,3 +11,4 @@ pub(crate) mod config;
 pub(crate) mod ext;
 pub(crate) mod epd;
 pub(crate) mod spi;
+pub(crate) mod lis2h12;

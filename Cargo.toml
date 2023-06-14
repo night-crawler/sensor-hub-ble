@@ -53,6 +53,9 @@ rclite = "0.2"
 embedded-graphics-core = "0.4"
 embedded-graphics = "0.8"
 atomic-polyfill = "1.0.2"
+num-derive = "0.3"
+cast = {version = "0.3.0", default-features = false }
+accelerometer = "0.12.0"
 
 [[bin]]
 name = "main"
