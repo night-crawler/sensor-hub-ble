@@ -19,7 +19,7 @@ pub(crate) async fn ble_debug_notify_task() {
     loop {
         let message = CHANNEL.recv().await;
         for connection in Connection::iter() {
-            if let Err(_) = server.dis.debug_notify(&connection, &message) {
+            if server.dis.debug_notify(&connection, &message).is_err() {
                 let _ = server.dis.debug_set(&message);
             }
         }

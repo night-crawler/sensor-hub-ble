@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+
 
 use embassy_time::{Duration, Timer};
 use thiserror_no_std::Error;
@@ -543,10 +543,12 @@ impl Default for Oversampling {
 /// See section 3.4.4 of the datasheet for more information on this.
 /// The default setting is disabled.
 #[derive(Debug, Copy, Clone)]
+#[derive(Default)]
 pub enum IIRFilter {
     /// Disables the IIR filter.
     /// The resolution of pressure and temperature measurements is dictated by their respective
     /// oversampling settings.
+    #[default]
     Off,
 
     /// Sets the IIR filter coefficient to 2.
@@ -576,11 +578,7 @@ impl IIRFilter {
     }
 }
 
-impl Default for IIRFilter {
-    fn default() -> Self {
-        IIRFilter::Off
-    }
-}
+
 
 #[derive(Debug)]
 pub enum SensorMode {

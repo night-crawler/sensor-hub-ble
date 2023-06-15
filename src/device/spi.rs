@@ -92,7 +92,7 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
     display.set_rotation(DisplayRotation::Rotate270);
     draw_text(&mut display, "LOL 270!", 5, 50);
 
-    epd.display(&display.buffer()).await?;
+    epd.display(display.buffer()).await?;
 
     epd.sleep().await?;
 

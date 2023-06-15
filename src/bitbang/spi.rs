@@ -10,16 +10,14 @@ pub enum SpiBbError {
 }
 
 #[derive(defmt::Format, Clone, Copy)]
+#[derive(Default)]
 pub enum BitOrder {
+    #[default]
     MSBFirst,
     LSBFirst,
 }
 
-impl Default for BitOrder {
-    fn default() -> Self {
-        BitOrder::MSBFirst
-    }
-}
+
 
 #[derive(Copy, Clone)]
 pub struct Config {
@@ -208,7 +206,7 @@ impl<'d, SCK, MOSI, MISO> SpiBus for SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioP
         Ok(())
     }
 
-    async fn transfer_in_place<'a>(&'a mut self, words: &'a mut [u8]) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
+    async fn transfer_in_place<'a>(&'a mut self, _words: &'a mut [u8]) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
         todo!()
     }
 }

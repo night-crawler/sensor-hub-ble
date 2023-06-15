@@ -8,8 +8,10 @@ use crate::common::device::epd::color::ColorType;
 
 /// Display rotation, only 90° increments supported
 #[derive(Clone, Copy)]
+#[derive(Default)]
 pub enum DisplayRotation {
     /// No rotation
+    #[default]
     Rotate0,
     /// Rotate by 90 degrees clockwise
     Rotate90,
@@ -19,11 +21,7 @@ pub enum DisplayRotation {
     Rotate270,
 }
 
-impl Default for DisplayRotation {
-    fn default() -> Self {
-        DisplayRotation::Rotate0
-    }
-}
+
 
 /// count the number of bytes per line knowing that it may contains padding bits
 const fn line_bytes(width: u32, bits_per_pixel: usize) -> usize {

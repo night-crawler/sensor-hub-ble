@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use accelerometer::{Accelerometer, Error, ErrorKind, RawAccelerometer};
+use accelerometer::{Error, ErrorKind, RawAccelerometer};
 use accelerometer::vector::F32x3;
 use accelerometer::vector::I16x3;
 use embedded_hal_async::i2c::ErrorType;

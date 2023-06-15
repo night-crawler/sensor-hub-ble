@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+
 use defmt::info;
 use embassy_nrf::gpio::{AnyPin, Input, Output};
 use embassy_time::{Duration, Timer};

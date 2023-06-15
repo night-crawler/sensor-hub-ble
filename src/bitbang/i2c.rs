@@ -35,12 +35,12 @@ impl<'d, SCL, SDA> BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPi
         sda: Flex<'d, SDA>,
         config: Config,
     ) -> Self {
-        let i2c = Self {
+        
+        Self {
             scl,
             sda,
             config,
-        };
-        i2c
+        }
     }
 
     async fn wait(&self) {
@@ -201,7 +201,7 @@ impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA
         self.i2c_start().await;
 
         // SAD + W
-        self.i2c_write_byte((address << 1) | 0x0).await;
+        self.i2c_write_byte((address << 1)).await;
         self.check_ack().await?;
 
         self.write_to_slave(write).await?;
@@ -221,7 +221,7 @@ impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA
         self.i2c_start().await;
 
         // SAD + W
-        self.i2c_write_byte((address << 1) | 0x0).await;
+        self.i2c_write_byte((address << 1)).await;
         self.check_ack().await?;
 
         self.write_to_slave(write).await?;
@@ -240,7 +240,7 @@ impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA
         Ok(())
     }
 
-    async fn transaction(&mut self, address: SevenBitAddress, operations: &mut [Operation<'_>]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+    async fn transaction(&mut self, _address: SevenBitAddress, _operations: &mut [Operation<'_>]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
         todo!()
     }
 }
