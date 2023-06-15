@@ -53,7 +53,7 @@ async fn read_bme_task(
             let i2c_pins = i2c_pins.deref_mut();
             let mut sda = Flex::new(&mut i2c_pins.sda);
             sda.set_as_input_output(Pull::None, OutputDrive::Standard);
-            let mut i2c = bitbang::i2c::I2C::new(
+            let mut i2c = bitbang::i2c::BitbangI2C::new(
                 Output::new(&mut i2c_pins.scl, Level::High, OutputDrive::Standard),
                 sda,
                 Default::default(),
@@ -96,7 +96,7 @@ async fn read_bme_task(
 async fn read_accel_task(
     i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     server: &BleServer,
-) -> Result<(), accelerometer::Error<bitbang::i2c::Error>> {
+) -> Result<(), accelerometer::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
         {
             let mut i2c_pins = i2c_pins.lock().await;
@@ -104,7 +104,7 @@ async fn read_accel_task(
             let i2c_pins = i2c_pins.deref_mut();
             let mut sda = Flex::new(&mut i2c_pins.sda);
             sda.set_as_input_output(Pull::None, OutputDrive::Standard);
-            let mut i2c = bitbang::i2c::I2C::new(
+            let mut i2c = bitbang::i2c::BitbangI2C::new(
                 Output::new(&mut i2c_pins.scl, Level::High, OutputDrive::Standard),
                 sda,
                 Default::default(),

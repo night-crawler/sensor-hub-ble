@@ -1,7 +1,6 @@
-use embassy_nrf::gpio::{AnyPin, Flex, Output, Pin as GpioPin, Pull};
+use embassy_nrf::gpio::{AnyPin, Flex, Output, Pin as GpioPin};
 use embassy_time::{Duration, Timer};
-
-use crate::common::compat::i2c::I2CWrapper;
+use embedded_hal_async::i2c::{Error, ErrorKind, ErrorType, I2c, NoAcknowledgeSource, Operation, SevenBitAddress};
 
 #[derive(Copy, Clone)]
 pub struct Config {
@@ -17,20 +16,20 @@ impl Default for Config {
 }
 
 #[derive(Debug, defmt::Format)]
-pub enum Error {
+pub enum BitbangI2CError {
     NoAck,
     InvalidData,
 }
 
 
-pub struct I2C<'d, SCL = AnyPin, SDA = AnyPin> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
+pub struct BitbangI2C<'d, SCL = AnyPin, SDA = AnyPin> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
     scl: Output<'d, SCL>,
     sda: Flex<'d, SDA>,
     config: Config,
 }
 
 
-impl<'d, SCL, SDA> I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
+impl<'d, SCL, SDA> BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
     pub fn new(
         scl: Output<'d, SCL>,
         sda: Flex<'d, SDA>,
@@ -135,16 +134,16 @@ impl<'d, SCL, SDA> I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd 
     }
 
     #[inline]
-    async fn check_ack(&mut self) -> Result<(), Error> {
+    async fn check_ack(&mut self) -> Result<(), BitbangI2CError> {
         if !self.i2c_is_ack().await {
-            Err(Error::NoAck)
+            Err(BitbangI2CError::NoAck)
         } else {
             Ok(())
         }
     }
 
     #[inline]
-    async fn read_from_slave(&mut self, input: &mut [u8]) -> Result<(), Error> {
+    async fn read_from_slave(&mut self, input: &mut [u8]) -> Result<(), BitbangI2CError> {
         for i in 0..input.len() {
             let should_send_ack = i != (input.len() - 1);
             input[i] = self.i2c_read_byte(should_send_ack).await;
@@ -153,7 +152,7 @@ impl<'d, SCL, SDA> I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd 
     }
 
     #[inline]
-    async fn write_to_slave(&mut self, output: &[u8]) -> Result<(), Error> {
+    async fn write_to_slave(&mut self, output: &[u8]) -> Result<(), BitbangI2CError> {
         for &byte in output {
             self.i2c_write_byte(byte).await;
             self.check_ack().await?;
@@ -162,53 +161,23 @@ impl<'d, SCL, SDA> I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd 
     }
 }
 
-impl<'d, SCL, SDA> I2CWrapper<Error> for I2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
-    async fn write_read(&mut self, address: u8, wr_buffer: &[u8], rd_buffer: &mut [u8]) -> Result<(), Error> {
-        if wr_buffer.is_empty() || rd_buffer.is_empty() {
-            return Err(Error::InvalidData);
+
+impl<'d, SCL, SDA> ErrorType for BitbangI2C<'d, SCL, SDA> where SCL: 'd + GpioPin, SDA: 'd + GpioPin {
+    type Error = BitbangI2CError;
+}
+
+impl Error for BitbangI2CError {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            BitbangI2CError::NoAck => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Data),
+            BitbangI2CError::InvalidData => ErrorKind::Other
         }
-
-        // ST
-        self.i2c_start().await;
-
-        // SAD + W
-        self.i2c_write_byte((address << 1) | 0x0).await;
-        self.check_ack().await?;
-
-        self.write_to_slave(wr_buffer).await?;
-
-        // SR
-        self.i2c_start().await;
-
-        // SAD + R
-        self.i2c_write_byte((address << 1) | 0x1).await;
-        self.check_ack().await?;
-
-        self.read_from_slave(rd_buffer).await?;
-
-        // SP
-        self.i2c_stop().await;
-        Ok(())
     }
+}
 
-    async fn write(&mut self, address: u8, buffer: &[u8]) -> Result<(), Error> {
-        // ST
-        self.i2c_start().await;
-
-        // SAD + W
-        self.i2c_write_byte((address << 1) | 0x0).await;
-        self.check_ack().await?;
-
-        self.write_to_slave(buffer).await?;
-
-        // SP
-        self.i2c_stop().await;
-
-        Ok(())
-    }
-
-    async fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Error> {
-        if buffer.is_empty() {
+impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
+    async fn read(&mut self, address: SevenBitAddress, read: &mut [u8]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+        if read.is_empty() {
             return Ok(());
         }
 
@@ -219,11 +188,59 @@ impl<'d, SCL, SDA> I2CWrapper<Error> for I2C<'d, SCL, SDA> where SCL: GpioPin + 
         self.i2c_write_byte((address << 1) | 0x1).await;
         self.check_ack().await?;
 
-        self.read_from_slave(buffer).await?;
+        self.read_from_slave(read).await?;
 
         // SP
         self.i2c_stop().await;
 
         Ok(())
+    }
+
+    async fn write(&mut self, address: SevenBitAddress, write: &[u8]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+        // ST
+        self.i2c_start().await;
+
+        // SAD + W
+        self.i2c_write_byte((address << 1) | 0x0).await;
+        self.check_ack().await?;
+
+        self.write_to_slave(write).await?;
+
+        // SP
+        self.i2c_stop().await;
+
+        Ok(())
+    }
+
+    async fn write_read(&mut self, address: SevenBitAddress, write: &[u8], read: &mut [u8]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+        if write.is_empty() || read.is_empty() {
+            return Err(BitbangI2CError::InvalidData);
+        }
+
+        // ST
+        self.i2c_start().await;
+
+        // SAD + W
+        self.i2c_write_byte((address << 1) | 0x0).await;
+        self.check_ack().await?;
+
+        self.write_to_slave(write).await?;
+
+        // SR
+        self.i2c_start().await;
+
+        // SAD + R
+        self.i2c_write_byte((address << 1) | 0x1).await;
+        self.check_ack().await?;
+
+        self.read_from_slave(read).await?;
+
+        // SP
+        self.i2c_stop().await;
+        Ok(())
+    }
+
+    async fn transaction(&mut self, address: SevenBitAddress, operations: &mut [Operation<'_>]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+        todo!()
     }
 }

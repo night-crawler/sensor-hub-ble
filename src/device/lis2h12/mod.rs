@@ -4,9 +4,9 @@ use core::marker::PhantomData;
 use accelerometer::{Accelerometer, Error, ErrorKind, RawAccelerometer};
 use accelerometer::vector::F32x3;
 use accelerometer::vector::I16x3;
+use embedded_hal_async::i2c::ErrorType;
 use num_traits::FromPrimitive;
 
-use crate::common::compat::i2c::I2CWrapper;
 use crate::common::device::lis2h12::reg::*;
 
 pub(crate) mod reg;
@@ -44,25 +44,24 @@ pub struct DataStatus {
 }
 
 /// `LIS2DH12` driver
-pub struct Lis2dh12<I2C, E> {
+pub struct Lis2dh12<I2C> {
     /// The concrete I²C device implementation
     i2c: I2C,
     /// The I²C device slave address
     addr: u8,
     /// Current full-scale
     fs: FullScale,
-    phantom_data: PhantomData<E>,
 }
 
 /// Interrupt setting and status
-pub struct Int<'a, REG, I2C, E> {
-    dev: &'a mut Lis2dh12<I2C, E>,
+pub struct Int<'a, REG, I2C> {
+    dev: &'a mut Lis2dh12<I2C>,
     reg: PhantomData<REG>,
 }
 
-impl<I2C, E> Lis2dh12<I2C, E>
+impl<I2C, E> Lis2dh12<I2C>
     where
-        I2C: I2CWrapper<E>,
+        I2C: embedded_hal_async::i2c::I2c + ErrorType<Error = E>,
         E: Debug,
 {
     /// Create a new `LIS2DH12` driver from the given `I2C` peripheral
@@ -71,7 +70,6 @@ impl<I2C, E> Lis2dh12<I2C, E>
             i2c,
             addr: addr.addr(),
             fs: FullScale::G2,
-            phantom_data: PhantomData::default(),
         };
 
         // Ensure we have the correct device ID
@@ -508,12 +506,12 @@ impl<I2C, E> Lis2dh12<I2C, E>
     }
 
     /// INT1
-    pub async fn int1(&mut self) -> Int<Int1Regs, I2C, E> {
+    pub async fn int1(&mut self) -> Int<Int1Regs, I2C> {
         Int::new(self)
     }
 
     /// INT2
-    pub async fn int2(&mut self) -> Int<Int2Regs, I2C, E> {
+    pub async fn int2(&mut self) -> Int<Int2Regs, I2C> {
         Int::new(self)
     }
 
@@ -656,9 +654,9 @@ impl<I2C, E> Lis2dh12<I2C, E>
 }
 
 // impl<I2C, E> RawAccelerometer<I16x3> for Lis2dh12<I2C, E>
-impl<I2C, E> Lis2dh12<I2C, E>
+impl<I2C, E> Lis2dh12<I2C>
     where
-        I2C: I2CWrapper<E>,
+        I2C: embedded_hal_async::i2c::I2c + ErrorType<Error = E>,
         E: Debug {
     /// Get acceleration reading from the accelerometer
     pub async fn accel_raw(&mut self) -> Result<I16x3, Error<E>> {
@@ -674,9 +672,9 @@ impl<I2C, E> Lis2dh12<I2C, E>
 }
 
 // impl<I2C, E> Accelerometer for Lis2dh12<I2C, E>
-impl<I2C, E> Lis2dh12<I2C, E>
+impl<I2C, E> Lis2dh12<I2C>
     where
-        I2C: I2CWrapper<E>,
+        I2C: embedded_hal_async::i2c::I2c + ErrorType<Error = E>,
         E: Debug {
     /// Get normalized ±g reading from the accelerometer
     pub async fn accel_norm(&mut self) -> Result<F32x3, Error<E>> {
@@ -716,13 +714,13 @@ impl<I2C, E> Lis2dh12<I2C, E>
 }
 
 
-impl<'a, REG, I2C, E> Int<'a, REG, I2C, E>
+impl<'a, REG, I2C, E> Int<'a, REG, I2C>
     where
         REG: IntRegs,
-        I2C: I2CWrapper<E>,
+        I2C: embedded_hal_async::i2c::I2c + ErrorType<Error = E>,
         E: Debug,
 {
-    fn new(dev: &'a mut Lis2dh12<I2C, E>) -> Self {
+    fn new(dev: &'a mut Lis2dh12<I2C>) -> Self {
         Self {
             dev,
             reg: PhantomData,

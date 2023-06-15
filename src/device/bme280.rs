@@ -4,7 +4,6 @@ use embassy_time::{Duration, Timer};
 use thiserror_no_std::Error;
 
 use crate::common::bitbang;
-use crate::common::compat::i2c::I2CWrapper;
 use crate::common::device::error::CustomI2CError;
 
 pub(crate) const BME280_I2C_ADDR_PRIMARY: u8 = 0x76;
@@ -82,20 +81,18 @@ macro_rules! set_bits {
 
 
 
-pub(crate) struct Bme280<'a, E, I: I2CWrapper<E>> where Bme280Error: From<E> {
+pub(crate) struct Bme280<'a, I: embedded_hal_async::i2c::I2c> {
     address: u8,
     interface: &'a mut I,
     calibration: Option<CalibrationData>,
-    phantom_data: PhantomData<E>,
 }
 
-impl<'a, E, I: I2CWrapper<E>> Bme280<'a, E, I> where Bme280Error: From<E> {
+impl<'a,  I: embedded_hal_async::i2c::I2c> Bme280<'a,  I>  where Bme280Error: core::convert::From<<I as embedded_hal_async::i2c::ErrorType>::Error> {
     pub fn new(interface: &'a mut I, address: u8) -> Self {
         Self {
             address,
             interface,
             calibration: None,
-            phantom_data: Default::default(),
         }
     }
 
@@ -599,7 +596,7 @@ pub enum Bme280Error {
     CompensationFailed,
 
     #[error("I²C error")]
-    BitbangBus(#[from] bitbang::i2c::Error),
+    BitbangBus(#[from] bitbang::i2c::BitbangI2CError),
 
     #[error("I²C error")]
     NativeBus(#[from] CustomI2CError),
