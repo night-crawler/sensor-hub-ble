@@ -8,6 +8,7 @@ use embassy_time::{Duration, Timer};
 use embedded_graphics_core::Drawable;
 use embedded_graphics_core::prelude::{DrawTarget, Point};
 use rclite::Arc;
+use spim::Spim;
 
 use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
@@ -47,10 +48,7 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
     config.mode = spi_pins.config.mode;
     config.orc = spi_pins.config.orc;
 
-
-    // drop(spi);
-
-    let mut spi: spim::Spim<SPI2> = spim::Spim::new_txonly(
+    let mut spi: Spim<SPI2> = Spim::new_txonly(
         &mut spi_pins.spim,
         Irqs,
         &mut spi_pins.sck,
@@ -71,7 +69,7 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
     );
     info!("Initialized EPD controls");
 
-    let mut epd = Epd2in13::new(controls);
+    let mut epd: Epd2in13<spim::Error, _> = Epd2in13::new(controls);
     epd.init().await?;
 
     info!("Initialized EPD");
@@ -98,7 +96,6 @@ async fn draw_something(spi_pins: &mut SpiTxPins<SPI2>, control_pins: &mut EpdCo
 
     epd.sleep().await?;
 
-    // epd.sleep().await?;
     info!("Updated and displayed frame");
 
     Ok(())

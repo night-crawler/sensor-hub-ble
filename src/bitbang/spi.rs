@@ -1,11 +1,10 @@
 use embassy_nrf::gpio::{AnyPin, Input, Output, Pin as GpioPin};
 use embassy_nrf::spim;
 use embassy_time::{Duration, Timer};
-
-use crate::common::compat::spi::SpimWrapper;
+use embedded_hal_async::spi::{ErrorKind, ErrorType, SpiBus, SpiBusFlush, SpiBusRead, SpiBusWrite};
 
 #[derive(Debug, defmt::Format)]
-pub enum Error {
+pub enum SpiBbError {
     Bus,
     NoData,
 }
@@ -112,7 +111,7 @@ impl<'d, SCK, MOSI, MISO> SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MI
         Timer::after(self.config.delay_duration).await;
     }
 
-    async fn exchange_byte(&mut self, read_byte: &mut u8, write_byte: u8) -> Result<(), Error> {
+    async fn exchange_byte(&mut self, read_byte: &mut u8, write_byte: u8) -> Result<(), SpiBbError> {
         for bit_offset in 0..8 {
             let out_bit = match self.config.bit_order {
                 BitOrder::MSBFirst => (write_byte >> (7 - bit_offset)) & 0b1,
@@ -160,9 +159,46 @@ impl<'d, SCK, MOSI, MISO> SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MI
     }
 }
 
-impl<'d, SCK, MOSI, MISO> SpimWrapper<Error> for SpiBb<'d, SCK, MOSI, MISO>
-    where SCK: GpioPin + 'd, MISO: GpioPin + 'd, MOSI: GpioPin + 'd {
-    async fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Error> {
+impl<'d, SCK, MOSI, MISO> SpiBusFlush for SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MISO: GpioPin + 'd, MOSI: GpioPin + 'd {
+    async fn flush(&mut self) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
+        Ok(())
+    }
+}
+
+impl<'d, SCK, MOSI, MISO> ErrorType for SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MISO: GpioPin + 'd, MOSI: GpioPin + 'd {
+    type Error = SpiBbError;
+}
+
+impl embedded_hal_async::spi::Error for SpiBbError {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            SpiBbError::Bus => ErrorKind::Other,
+            SpiBbError::NoData => ErrorKind::Other,
+        }
+    }
+}
+
+impl<'d, SCK, MOSI, MISO> SpiBusWrite for SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MISO: GpioPin + 'd, MOSI: GpioPin + 'd {
+    async fn write(&mut self, words: &[u8]) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
+        for &write_byte in words {
+            self.exchange_byte(&mut 0, write_byte).await?;
+        }
+        Ok(())
+    }
+}
+
+
+impl<'d, SCK, MOSI, MISO> SpiBusRead for SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MISO: GpioPin + 'd, MOSI: GpioPin + 'd {
+    async fn read(&mut self, words: &mut [u8]) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
+        for read_byte in words.iter_mut() {
+            self.exchange_byte(read_byte, self.config.orc).await?;
+        }
+        Ok(())
+    }
+}
+
+impl<'d, SCK, MOSI, MISO> SpiBus for SpiBb<'d, SCK, MOSI, MISO> where SCK: GpioPin + 'd, MISO: GpioPin + 'd, MOSI: GpioPin + 'd {
+    async fn transfer<'a>(&'a mut self, read: &'a mut [u8], write: &'a [u8]) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
         let mut fake_read = 0u8;
         for index in 0..read.len().max(write.len()) {
             let read_byte = read.get_mut(index).unwrap_or(&mut fake_read);
@@ -172,17 +208,7 @@ impl<'d, SCK, MOSI, MISO> SpimWrapper<Error> for SpiBb<'d, SCK, MOSI, MISO>
         Ok(())
     }
 
-    async fn write(&mut self, data: &[u8]) -> Result<(), Error> {
-        for &write_byte in data {
-            self.exchange_byte(&mut 0, write_byte).await?;
-        }
-        Ok(())
-    }
-
-    async fn read(&mut self, data: &mut [u8]) -> Result<(), Error> {
-        for read_byte in data.iter_mut() {
-            self.exchange_byte(read_byte, self.config.orc).await?;
-        }
-        Ok(())
+    async fn transfer_in_place<'a>(&'a mut self, words: &'a mut [u8]) -> Result<(), <SpiBb<'d, SCK, MOSI, MISO> as ErrorType>::Error> {
+        todo!()
     }
 }

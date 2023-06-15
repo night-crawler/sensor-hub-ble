@@ -2,22 +2,21 @@ use core::marker::PhantomData;
 use defmt::info;
 use embassy_nrf::gpio::{AnyPin, Input, Output};
 use embassy_time::{Duration, Timer};
-use crate::common::compat::spi::SpimWrapper;
+use embedded_hal_async::spi::{SpiBusRead, SpiBusWrite};
 
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::Command;
 
-pub(crate) struct EpdControls<'a, E, I: SpimWrapper<E>> {
+pub(crate) struct EpdControls<'a, I: SpiBusWrite + SpiBusRead> {
     interface: &'a mut I,
     busy: Input<'a, AnyPin>,
     cs: Output<'a, AnyPin>,
     dc: Output<'a, AnyPin>,
     rst: Output<'a, AnyPin>,
     delay_us: u64,
-    phantom_data: PhantomData<E>
 }
 
-impl<'a, E, I: SpimWrapper<E>> EpdControls<'a, E, I> {
+impl<'a, I: SpiBusWrite + SpiBusRead> EpdControls<'a, I> {
     pub(crate) fn new(
         interface: &'a mut I,
         busy: Input<'a, AnyPin>,
@@ -32,12 +31,14 @@ impl<'a, E, I: SpimWrapper<E>> EpdControls<'a, E, I> {
             dc,
             rst,
             delay_us: 10_000,
-            phantom_data: Default::default(),
         }
     }
 }
 
-impl<'a, E, I: SpimWrapper<E>> DisplayInterface<E> for EpdControls<'a, E, I> {
+impl<'a, E, I> DisplayInterface<E> for EpdControls<'a, I>
+where E: From<<I as embedded_hal_async::spi::ErrorType>::Error>,
+      I: SpiBusWrite + SpiBusRead
+{
     async fn send_command<T: Command>(&mut self, command: T) -> Result<(), E> {
         self.dc.set_low();
         self.write(&[command.address()]).await?;
