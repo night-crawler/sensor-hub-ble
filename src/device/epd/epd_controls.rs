@@ -1,4 +1,3 @@
-
 use defmt::info;
 use embassy_nrf::gpio::{AnyPin, Input, Output};
 use embassy_time::{Duration, Timer};
@@ -36,8 +35,9 @@ impl<'a, I: SpiBusWrite + SpiBusRead> EpdControls<'a, I> {
 }
 
 impl<'a, E, I> DisplayInterface<E> for EpdControls<'a, I>
-where E: From<<I as embedded_hal_async::spi::ErrorType>::Error>,
-      I: SpiBusWrite + SpiBusRead
+where
+    E: From<<I as embedded_hal_async::spi::ErrorType>::Error>,
+    I: SpiBusWrite + SpiBusRead,
 {
     async fn send_command<T: Command>(&mut self, command: T) -> Result<(), E> {
         self.dc.set_low();
@@ -51,7 +51,11 @@ where E: From<<I as embedded_hal_async::spi::ErrorType>::Error>,
         Ok(())
     }
 
-    async fn send_command_with_data<T: Command>(&mut self, command: T, data: &[u8]) -> Result<(), E> {
+    async fn send_command_with_data<T: Command>(
+        &mut self,
+        command: T,
+        data: &[u8],
+    ) -> Result<(), E> {
         self.send_command(command).await?;
         self.send_data(data).await?;
         Ok(())

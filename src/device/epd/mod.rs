@@ -7,18 +7,15 @@ use crate::common::device::epd::graphics::Display;
 use crate::common::device::epd::interface::DisplayInterface;
 
 use self::color::Color;
-use self::command::{
-    Command,
-    DeepSleepMode,
-};
+use self::command::{Command, DeepSleepMode};
 
 pub(crate) mod color;
 pub(crate) mod command;
 pub(crate) mod constants;
-pub(crate) mod interface;
 pub(crate) mod epd_controls;
-pub(crate) mod traits;
 pub(crate) mod graphics;
+pub(crate) mod interface;
+pub(crate) mod traits;
 
 pub const fn buffer_len(width: usize, height: usize) -> usize {
     (width + 7) / 8 * height
@@ -41,7 +38,7 @@ pub struct Epd2in13<E, I: DisplayInterface<E>> {
 
     /// Background Color
     background_color: Color,
-    phantom_data: PhantomData<E>
+    phantom_data: PhantomData<E>,
 }
 
 impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
@@ -50,7 +47,7 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
             interface,
             sleep_mode: DeepSleepMode::Mode2,
             background_color: Color::White,
-            phantom_data: Default::default()
+            phantom_data: Default::default(),
         }
     }
     async fn send_command(&mut self, command: Command) -> Result<(), E> {
@@ -67,11 +64,7 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         Ok(())
     }
 
-    async fn send_command_with_data(
-        &mut self,
-        command: Command,
-        data: &[u8],
-    ) -> Result<(), E> {
+    async fn send_command_with_data(&mut self, command: Command, data: &[u8]) -> Result<(), E> {
         info!("Executing command with data {:?}", command);
         self.interface.send_command_with_data(command, data).await?;
         info!("Executed command with data {:?}: DONE", command);
@@ -89,21 +82,24 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
     }
 
     pub async fn turn_on_display(&mut self) -> Result<(), E> {
-        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC7]).await?;
+        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC7])
+            .await?;
         self.send_command(Command::MasterActivation).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
     pub async fn turn_on_display_part(&mut self) -> Result<(), E> {
-        self.send_command_with_data(Command::DisplayUpdateControl2, &[0x0f]).await?;
+        self.send_command_with_data(Command::DisplayUpdateControl2, &[0x0f])
+            .await?;
         self.send_command(Command::MasterActivation).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
     pub async fn lut(&mut self, data: &[u8]) -> Result<(), E> {
-        self.send_command_with_data(Command::WriteLutRegister, data).await?;
+        self.send_command_with_data(Command::WriteLutRegister, data)
+            .await?;
         self.wait_until_idle().await;
         Ok(())
     }
@@ -112,37 +108,54 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         self.lut(lut).await?;
 
         // 0x22,0x17,0x41,0x00,0x32,0x36,
-        self.send_command_with_data(Command::Unknown1, &[0x22]).await?;
-        self.send_command_with_data(Command::GateDrivingVoltageCtrl, &[0x17]).await?;
-        self.send_command_with_data(Command::SourceDrivingVoltageCtrl, &[0x41, 0x0, 0x32]).await?;
-        self.send_command_with_data(Command::WriteVcomRegister, &[0x78]).await?;
+        self.send_command_with_data(Command::Unknown1, &[0x22])
+            .await?;
+        self.send_command_with_data(Command::GateDrivingVoltageCtrl, &[0x17])
+            .await?;
+        self.send_command_with_data(Command::SourceDrivingVoltageCtrl, &[0x41, 0x0, 0x32])
+            .await?;
+        self.send_command_with_data(Command::WriteVcomRegister, &[0x78])
+            .await?;
 
         Ok(())
     }
 
-    pub async fn set_window(&mut self, x_start: u32, y_start: u32, x_end: u32, y_end: u32) -> Result<(), E> {
-        self.send_command_with_data(Command::SetRamXAddressStartEndPosition, &[
-            ((x_start >> 3) & 0xFF) as u8,
-            ((x_end >> 3) & 0xFF) as u8
-        ]).await?;
+    pub async fn set_window(
+        &mut self,
+        x_start: u32,
+        y_start: u32,
+        x_end: u32,
+        y_end: u32,
+    ) -> Result<(), E> {
+        self.send_command_with_data(
+            Command::SetRamXAddressStartEndPosition,
+            &[((x_start >> 3) & 0xFF) as u8, ((x_end >> 3) & 0xFF) as u8],
+        )
+        .await?;
 
-        self.send_command_with_data(Command::SetRamYAddressStartEndPosition, &[
-            (y_start & 0xFF) as u8,
-            ((y_start >> 8) & 0xFF) as u8,
-            (y_end & 0xFF) as u8,
-            ((y_end >> 8) & 0xFF) as u8,
-        ]).await?;
+        self.send_command_with_data(
+            Command::SetRamYAddressStartEndPosition,
+            &[
+                (y_start & 0xFF) as u8,
+                ((y_start >> 8) & 0xFF) as u8,
+                (y_end & 0xFF) as u8,
+                ((y_end >> 8) & 0xFF) as u8,
+            ],
+        )
+        .await?;
 
         Ok(())
     }
 
     pub async fn set_cursor(&mut self, x: u32, y: u32) -> Result<(), E> {
-        self.send_command_with_data(Command::SetRamXAddressCounter, &[(x & 0xFF) as u8]).await?;
+        self.send_command_with_data(Command::SetRamXAddressCounter, &[(x & 0xFF) as u8])
+            .await?;
 
-        self.send_command_with_data(Command::SetRamYAddressCounter, &[
-            (y & 0xFF) as u8,
-            ((y >> 8) & 0xFF) as u8
-        ]).await?;
+        self.send_command_with_data(
+            Command::SetRamYAddressCounter,
+            &[(y & 0xFF) as u8, ((y >> 8) & 0xFF) as u8],
+        )
+        .await?;
 
         Ok(())
     }
@@ -155,21 +168,21 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         self.wait_until_idle().await;
         Timer::after(Duration::from_millis(10)).await;
 
-        self.send_command_with_data(Command::DriverOutputControl, &[
-            0xf9,
-            0x00,
-            0x00,
-        ]).await?;
+        self.send_command_with_data(Command::DriverOutputControl, &[0xf9, 0x00, 0x00])
+            .await?;
 
-
-        self.send_command_with_data(Command::DataEntryModeSetting, &[0x03]).await?;
+        self.send_command_with_data(Command::DataEntryModeSetting, &[0x03])
+            .await?;
 
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_cursor(0, 0).await?;
 
-        self.send_command_with_data(Command::BorderWaveformControl, &[0x05]).await?;
-        self.send_command_with_data(Command::DisplayUpdateControl1, &[0x00, 0x80]).await?;
-        self.send_command_with_data(Command::UnknownTempSensor, &[0x80]).await?;
+        self.send_command_with_data(Command::BorderWaveformControl, &[0x05])
+            .await?;
+        self.send_command_with_data(Command::DisplayUpdateControl1, &[0x00, 0x80])
+            .await?;
+        self.send_command_with_data(Command::UnknownTempSensor, &[0x80])
+            .await?;
 
         self.wait_until_idle().await;
 
@@ -179,12 +192,12 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
     }
 
     pub async fn display(&mut self, image: &[u8]) -> Result<(), E> {
-        self.send_command_with_data(Command::WriteRam, image).await?;
+        self.send_command_with_data(Command::WriteRam, image)
+            .await?;
         // self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         // self.set_cursor(0, 0).await?;
 
         self.turn_on_display().await?;
-
 
         Ok(())
     }
@@ -194,21 +207,16 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
 
         self.set_lut(&LUT_PARTIAL_UPDATE).await?;
 
-        self.send_command_with_data(Command::WriteOtpSelection, &[
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x40,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-        ]).await?;
+        self.send_command_with_data(
+            Command::WriteOtpSelection,
+            &[0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00],
+        )
+        .await?;
 
-        self.send_command_with_data(Command::BorderWaveformControl, &[0x80]).await?;
-        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC0]).await?;
+        self.send_command_with_data(Command::BorderWaveformControl, &[0x80])
+            .await?;
+        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC0])
+            .await?;
         self.send_command(Command::MasterActivation).await?;
 
         self.wait_until_idle().await;
@@ -216,16 +224,19 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_cursor(0, 0).await?;
 
-        self.send_command_with_data(Command::WriteRam, image).await?;
+        self.send_command_with_data(Command::WriteRam, image)
+            .await?;
         self.turn_on_display_part().await?;
 
         Ok(())
     }
 
     pub async fn display_part_base_image(&mut self, image: &[u8]) -> Result<(), E> {
-        self.send_command_with_data(Command::WriteRam, image).await?;
+        self.send_command_with_data(Command::WriteRam, image)
+            .await?;
 
-        self.send_command_with_data(Command::WriteRamRed, image).await?;
+        self.send_command_with_data(Command::WriteRamRed, image)
+            .await?;
         self.turn_on_display().await?;
 
         Ok(())
@@ -233,22 +244,19 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
 
     pub async fn clear(&mut self, color: Color) -> Result<(), E> {
         self.send_command(Command::WriteRam).await?;
-        self.interface.send_data_x_times(color.get_byte_value(), 4000).await?;
+        self.interface
+            .send_data_x_times(color.get_byte_value(), 4000)
+            .await?;
         self.turn_on_display().await?;
         Ok(())
     }
 
     pub async fn sleep(&mut self) -> Result<(), E> {
-        self.send_command_with_data(Command::DeepSleepMode, &[0x01]).await?;
+        self.send_command_with_data(Command::DeepSleepMode, &[0x01])
+            .await?;
         Ok(())
     }
 }
 
-
-pub type Display2in13 = Display<
-    WIDTH,
-    HEIGHT,
-    false,
-    { buffer_len(WIDTH as usize, HEIGHT as usize) },
-    Color,
->;
+pub type Display2in13 =
+    Display<WIDTH, HEIGHT, false, { buffer_len(WIDTH as usize, HEIGHT as usize) }, Color>;

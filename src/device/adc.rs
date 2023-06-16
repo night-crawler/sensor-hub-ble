@@ -12,7 +12,11 @@ use crate::impl_set_many;
 
 pub static ADC_TIMEOUT: AtomicU32 = AtomicU32::new(1000);
 
-pub(crate) async fn notify_adc_value<'a, const N: usize>(saadc: &'a mut Saadc<'_, N>, server: &'a BleServer, connection: &'a Connection) {
+pub(crate) async fn notify_adc_value<'a, const N: usize>(
+    saadc: &'a mut Saadc<'_, N>,
+    server: &'a BleServer,
+    connection: &'a Connection,
+) {
     let mut count = 0;
     let mut bufs = [[[0; N]; 200]; 2];
     let mut accum: [f32; N] = [0f32; N];
@@ -44,7 +48,9 @@ pub(crate) async fn notify_adc_value<'a, const N: usize>(saadc: &'a mut Saadc<'_
                     if count > 100 {
                         let voltages = compute_voltages(&accum, 3.6);
                         let voltages = serialize_voltages(voltages);
-                        server.adc.notify_all_voltages(connection, voltages.as_ref());
+                        server
+                            .adc
+                            .notify_all_voltages(connection, voltages.as_ref());
                         let _ = server.adc.samples_notify(connection, &(count as u16));
                         count = 0;
                         return CallbackResult::Stop;
@@ -56,10 +62,12 @@ pub(crate) async fn notify_adc_value<'a, const N: usize>(saadc: &'a mut Saadc<'_
         let elapsed = start_time.elapsed().as_micros();
         let _ = server.adc.elapsed_notify(connection, &elapsed);
 
-        Timer::after(Duration::from_millis(ADC_TIMEOUT.load(Ordering::Relaxed) as u64)).await;
+        Timer::after(Duration::from_millis(
+            ADC_TIMEOUT.load(Ordering::Relaxed) as u64
+        ))
+        .await;
     }
 }
-
 
 pub(crate) trait NotifyAllAdcVoltage {
     fn notify_all_voltages(&self, conn: &Connection, voltages: &[u16]);
@@ -71,23 +79,27 @@ impl NotifyAllAdcVoltage for AdcService {
     }
 }
 
-
 fn compute_voltages<const N: usize>(adc_readings: &[f32; N], reference_voltage: f32) -> [f32; N] {
     let mut voltages = [0f32; N];
-    voltages.iter_mut().zip(adc_readings).for_each(|(voltage, &reading)| {
-        *voltage = reading / 4095f32 * reference_voltage;
-    });
+    voltages
+        .iter_mut()
+        .zip(adc_readings)
+        .for_each(|(voltage, &reading)| {
+            *voltage = reading / 4095f32 * reference_voltage;
+        });
     voltages
 }
 
 fn serialize_voltages<const N: usize>(raw_values: [f32; N]) -> [u16; N] {
     let mut ble_repr_values = [0u16; N];
-    ble_repr_values.iter_mut().zip(raw_values).for_each(|(ble, raw)| {
-        *ble = raw.as_voltage();
-    });
+    ble_repr_values
+        .iter_mut()
+        .zip(raw_values)
+        .for_each(|(ble, raw)| {
+            *ble = raw.as_voltage();
+        });
     ble_repr_values
 }
-
 
 #[macro_export]
 macro_rules! impl_set_many {

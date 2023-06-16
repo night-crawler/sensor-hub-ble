@@ -1,27 +1,27 @@
 use core::mem;
 
+use crate::common::bitbang;
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_nrf::{bind_interrupts, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Pin};
-use embassy_nrf::interrupt::Priority;
 use embassy_nrf::interrupt::typelevel::Interrupt;
 use embassy_nrf::interrupt::typelevel::SAADC;
 use embassy_nrf::interrupt::typelevel::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
 use embassy_nrf::interrupt::typelevel::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
 use embassy_nrf::interrupt::typelevel::SPIM2_SPIS2_SPI2;
+use embassy_nrf::interrupt::Priority;
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Input, Resistor, Saadc};
 use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
+use embassy_nrf::{bind_interrupts, peripherals, saadc, Peripherals};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use rclite::Arc;
-use crate::common::bitbang;
 
 use crate::common::device::error::DeviceError;
-use crate::common::device::led_animation::{LED, led_animation_task, LedState, LedStateAnimation};
+use crate::common::device::led_animation::{led_animation_task, LedState, LedStateAnimation, LED};
 
 bind_interrupts!(pub(crate) struct Irqs {
     SAADC => saadc::InterruptHandler;
@@ -29,7 +29,6 @@ bind_interrupts!(pub(crate) struct Irqs {
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => twim::InterruptHandler<peripherals::TWISPI1>;
     SPIM2_SPIS2_SPI2 => spim::InterruptHandler<peripherals::SPI2>;
 });
-
 
 pub(crate) struct I2CPins<T> {
     pub(crate) twim: T,
@@ -43,7 +42,6 @@ pub(crate) struct BitbangI2CPins {
     pub(crate) scl: AnyPin,
     pub(crate) config: bitbang::i2c::Config,
 }
-
 
 pub(crate) struct SpiTxPins<T> {
     pub(crate) spim: T,
@@ -78,16 +76,12 @@ fn prepare_nrf_peripherals() -> Peripherals {
     embassy_nrf::init(config)
 }
 
-
 impl DeviceManager {
     pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
-        LED.lock().await.init(
-            board.P0_22,
-            board.P0_16,
-            board.P0_24,
-            board.P0_08,
-        );
+        LED.lock()
+            .await
+            .init(board.P0_22, board.P0_16, board.P0_24, board.P0_08);
         info!("Successfully Initialized LED");
 
         let mut led = LED.lock().await;
@@ -120,25 +114,25 @@ impl DeviceManager {
         let bbi2c0 = BitbangI2CPins {
             scl: board.P1_11.degrade(),
             sda: board.P1_12.degrade(),
-            config: Default::default()
+            config: Default::default(),
         };
 
         let bbi2c_exp = BitbangI2CPins {
             scl: board.P1_06.degrade(),
             sda: board.P1_04.degrade(),
-            config: Default::default()
+            config: Default::default(),
         };
 
         let saadc = Self::init_adc(
             [
-                board.P0_02.degrade_saadc(),  // AIN0
-                board.P0_03.degrade_saadc(),  // AIN1 AIN.BAT
-                board.P0_04.degrade_saadc(),  // AIN2
-                board.P0_05.degrade_saadc(),  // AIN3
-                board.P0_28.degrade_saadc(),  // AIN4
-                board.P0_29.degrade_saadc(),  // AIN5
-                board.P0_30.degrade_saadc(),  // AIN6
-                board.P0_31.degrade_saadc(),  // AIN7
+                board.P0_02.degrade_saadc(), // AIN0
+                board.P0_03.degrade_saadc(), // AIN1 AIN.BAT
+                board.P0_04.degrade_saadc(), // AIN2
+                board.P0_05.degrade_saadc(), // AIN3
+                board.P0_28.degrade_saadc(), // AIN4
+                board.P0_29.degrade_saadc(), // AIN5
+                board.P0_30.degrade_saadc(), // AIN6
+                board.P0_31.degrade_saadc(), // AIN7
             ],
             board.SAADC,
         );
@@ -182,7 +176,11 @@ impl DeviceManager {
 #[embassy_executor::task]
 async fn set_watchdog_task() {
     loop {
-        LedStateAnimation::blink(&[LedState::Blue], Duration::from_millis(100), Duration::from_secs(0));
+        LedStateAnimation::blink(
+            &[LedState::Blue],
+            Duration::from_millis(100),
+            Duration::from_secs(0),
+        );
         Timer::after(Duration::from_secs(1)).await;
     }
 }

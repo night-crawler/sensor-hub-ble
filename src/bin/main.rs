@@ -22,29 +22,28 @@ use nrf_softdevice::Softdevice;
 use panic_probe as _;
 use rclite::Arc;
 
-use crate::common::ble::SERVER;
-use crate::common::ble::services::{AdcServiceEvent, BleServer, BleServerEvent, Bme280ServiceEvent, DeviceInformationServiceEvent};
+use crate::common::ble::services::{
+    AdcServiceEvent, BleServer, BleServerEvent, Bme280ServiceEvent, DeviceInformationServiceEvent,
+};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
+use crate::common::ble::SERVER;
 use crate::common::device::adc::ADC_TIMEOUT;
 use crate::common::device::ble_debugger::ble_debug_notify_task;
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::i2c::read_i2c0_task;
-use crate::common::device::led_animation::{LED, LedState, LedStateAnimation};
+use crate::common::device::led_animation::{LedState, LedStateAnimation, LED};
 use crate::common::device::spi::epd_task;
 
 #[path = "../common.rs"]
 mod common;
 
-
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
-
 
 #[embassy_executor::task]
 async fn softdevice_task(sd: &'static Softdevice) -> ! {
     sd.run().await
 }
-
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -69,7 +68,10 @@ async fn main(spawner: Spawner) {
 
     SERVER.init_ro(server);
 
-    unwrap!(spawner.spawn(epd_task(Arc::clone(&device_manager.spi2), Arc::clone(&device_manager.epd_control_pins))));
+    unwrap!(spawner.spawn(epd_task(
+        Arc::clone(&device_manager.spi2),
+        Arc::clone(&device_manager.epd_control_pins)
+    )));
 
     unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&device_manager.bbi2c0))));
     unwrap!(spawner.spawn(ble_debug_notify_task()));
@@ -81,7 +83,10 @@ async fn main(spawner: Spawner) {
 
     loop {
         let config = peripheral::Config::default();
-        let adv = peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
+        let adv = peripheral::ConnectableAdvertisement::ScannableUndirected {
+            adv_data,
+            scan_data,
+        };
         let conn = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
 
         LedStateAnimation::blink_long(&[LedState::Purple]);
@@ -90,11 +95,19 @@ async fn main(spawner: Spawner) {
         let server_fut = gatt_server::run(&conn, SERVER.get(), |e| match e {
             BleServerEvent::Dis(event) => match event {
                 DeviceInformationServiceEvent::BatteryLevelCccdWrite { notifications } => {
-                    let state = if notifications { LedState::Green } else { LedState::Red };
+                    let state = if notifications {
+                        LedState::Green
+                    } else {
+                        LedState::Red
+                    };
                     LedStateAnimation::blink_short(&[state]);
                 }
                 DeviceInformationServiceEvent::TempCccdWrite { notifications } => {
-                    let state = if notifications { LedState::Green } else { LedState::Red };
+                    let state = if notifications {
+                        LedState::Green
+                    } else {
+                        LedState::Red
+                    };
                     LedStateAnimation::blink_short(&[state]);
                 }
                 DeviceInformationServiceEvent::DebugCccdWrite { .. } => {}
@@ -119,13 +132,10 @@ async fn main(spawner: Spawner) {
                 Bme280ServiceEvent::PressureCccdWrite { .. } => {}
                 Bme280ServiceEvent::TimeoutWrite(_) => {}
                 Bme280ServiceEvent::TimeoutCccdWrite { .. } => {}
-            }
+            },
         });
-
 
         LedStateAnimation::sweep_long(&[LedState::White]);
         server_fut.await;
     }
 }
-
-

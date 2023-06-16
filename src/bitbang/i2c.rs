@@ -1,6 +1,8 @@
 use embassy_nrf::gpio::{AnyPin, Flex, Output, Pin as GpioPin};
 use embassy_time::{Duration, Timer};
-use embedded_hal_async::i2c::{Error, ErrorKind, ErrorType, I2c, NoAcknowledgeSource, Operation, SevenBitAddress};
+use embedded_hal_async::i2c::{
+    Error, ErrorKind, ErrorType, I2c, NoAcknowledgeSource, Operation, SevenBitAddress,
+};
 
 #[derive(Copy, Clone)]
 pub struct Config {
@@ -10,7 +12,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            delay_duration: Duration::from_hz(10000)
+            delay_duration: Duration::from_hz(10000),
         }
     }
 }
@@ -21,26 +23,23 @@ pub enum BitbangI2CError {
     InvalidData,
 }
 
-
-pub struct BitbangI2C<'d, SCL = AnyPin, SDA = AnyPin> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
+pub struct BitbangI2C<'d, SCL = AnyPin, SDA = AnyPin>
+where
+    SCL: GpioPin + 'd,
+    SDA: GpioPin + 'd,
+{
     scl: Output<'d, SCL>,
     sda: Flex<'d, SDA>,
     config: Config,
 }
 
-
-impl<'d, SCL, SDA> BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
-    pub fn new(
-        scl: Output<'d, SCL>,
-        sda: Flex<'d, SDA>,
-        config: Config,
-    ) -> Self {
-        
-        Self {
-            scl,
-            sda,
-            config,
-        }
+impl<'d, SCL, SDA> BitbangI2C<'d, SCL, SDA>
+where
+    SCL: GpioPin + 'd,
+    SDA: GpioPin + 'd,
+{
+    pub fn new(scl: Output<'d, SCL>, sda: Flex<'d, SDA>, config: Config) -> Self {
+        Self { scl, sda, config }
     }
 
     async fn wait(&self) {
@@ -161,8 +160,11 @@ impl<'d, SCL, SDA> BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPi
     }
 }
 
-
-impl<'d, SCL, SDA> ErrorType for BitbangI2C<'d, SCL, SDA> where SCL: 'd + GpioPin, SDA: 'd + GpioPin {
+impl<'d, SCL, SDA> ErrorType for BitbangI2C<'d, SCL, SDA>
+where
+    SCL: 'd + GpioPin,
+    SDA: 'd + GpioPin,
+{
     type Error = BitbangI2CError;
 }
 
@@ -170,13 +172,21 @@ impl Error for BitbangI2CError {
     fn kind(&self) -> ErrorKind {
         match self {
             BitbangI2CError::NoAck => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Data),
-            BitbangI2CError::InvalidData => ErrorKind::Other
+            BitbangI2CError::InvalidData => ErrorKind::Other,
         }
     }
 }
 
-impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA: GpioPin + 'd {
-    async fn read(&mut self, address: SevenBitAddress, read: &mut [u8]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA>
+where
+    SCL: GpioPin + 'd,
+    SDA: GpioPin + 'd,
+{
+    async fn read(
+        &mut self,
+        address: SevenBitAddress,
+        read: &mut [u8],
+    ) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
         if read.is_empty() {
             return Ok(());
         }
@@ -196,12 +206,16 @@ impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA
         Ok(())
     }
 
-    async fn write(&mut self, address: SevenBitAddress, write: &[u8]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+    async fn write(
+        &mut self,
+        address: SevenBitAddress,
+        write: &[u8],
+    ) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
         // ST
         self.i2c_start().await;
 
         // SAD + W
-        self.i2c_write_byte((address << 1)).await;
+        self.i2c_write_byte(address << 1).await;
         self.check_ack().await?;
 
         self.write_to_slave(write).await?;
@@ -212,7 +226,12 @@ impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA
         Ok(())
     }
 
-    async fn write_read(&mut self, address: SevenBitAddress, write: &[u8], read: &mut [u8]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+    async fn write_read(
+        &mut self,
+        address: SevenBitAddress,
+        write: &[u8],
+        read: &mut [u8],
+    ) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
         if write.is_empty() || read.is_empty() {
             return Err(BitbangI2CError::InvalidData);
         }
@@ -240,7 +259,11 @@ impl<'d, SCL, SDA> I2c for BitbangI2C<'d, SCL, SDA> where SCL: GpioPin + 'd, SDA
         Ok(())
     }
 
-    async fn transaction(&mut self, _address: SevenBitAddress, _operations: &mut [Operation<'_>]) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
+    async fn transaction(
+        &mut self,
+        _address: SevenBitAddress,
+        _operations: &mut [Operation<'_>],
+    ) -> Result<(), <BitbangI2C<'d, SCL, SDA> as ErrorType>::Error> {
         todo!()
     }
 }

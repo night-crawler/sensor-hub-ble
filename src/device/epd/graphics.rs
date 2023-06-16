@@ -2,13 +2,11 @@
 
 use core::marker::PhantomData;
 
-use embedded_graphics_core::prelude::*;
 use crate::common::device::epd::color::ColorType;
-
+use embedded_graphics_core::prelude::*;
 
 /// Display rotation, only 90° increments supported
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub enum DisplayRotation {
     /// No rotation
     #[default]
@@ -20,8 +18,6 @@ pub enum DisplayRotation {
     /// Rotate 270 degrees clockwise
     Rotate270,
 }
-
-
 
 /// count the number of bytes per line knowing that it may contains padding bits
 const fn line_bytes(width: u32, bits_per_pixel: usize) -> usize {
@@ -64,12 +60,12 @@ pub struct Display<
 }
 
 impl<
-    const WIDTH: u32,
-    const HEIGHT: u32,
-    const BWRBIT: bool,
-    const BYTECOUNT: usize,
-    COLOR: ColorType,
-> Default for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+        const WIDTH: u32,
+        const HEIGHT: u32,
+        const BWRBIT: bool,
+        const BYTECOUNT: usize,
+        COLOR: ColorType,
+    > Default for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     /// Initialize display with the color '0', which may not be the same on all device.
     /// Many devices have a bit parameter polarity that should be changed if this is not the right
@@ -92,19 +88,19 @@ impl<
 
 /// For use with embedded_grahics
 impl<
-    const WIDTH: u32,
-    const HEIGHT: u32,
-    const BWRBIT: bool,
-    const BYTECOUNT: usize,
-    COLOR: ColorType,
-> DrawTarget for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+        const WIDTH: u32,
+        const HEIGHT: u32,
+        const BWRBIT: bool,
+        const BYTECOUNT: usize,
+        COLOR: ColorType,
+    > DrawTarget for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     type Color = COLOR;
     type Error = core::convert::Infallible;
 
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-        where
-            I: IntoIterator<Item=Pixel<Self::Color>>,
+    where
+        I: IntoIterator<Item = Pixel<Self::Color>>,
     {
         for pixel in pixels {
             self.set_pixel(pixel);
@@ -115,12 +111,12 @@ impl<
 
 /// For use with embedded_grahics
 impl<
-    const WIDTH: u32,
-    const HEIGHT: u32,
-    const BWRBIT: bool,
-    const BYTECOUNT: usize,
-    COLOR: ColorType,
-> OriginDimensions for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+        const WIDTH: u32,
+        const HEIGHT: u32,
+        const BWRBIT: bool,
+        const BYTECOUNT: usize,
+        COLOR: ColorType,
+    > OriginDimensions for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     fn size(&self) -> Size {
         match self.rotation {
@@ -131,12 +127,12 @@ impl<
 }
 
 impl<
-    const WIDTH: u32,
-    const HEIGHT: u32,
-    const BWRBIT: bool,
-    const BYTECOUNT: usize,
-    COLOR: ColorType,
-> Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+        const WIDTH: u32,
+        const HEIGHT: u32,
+        const BWRBIT: bool,
+        const BYTECOUNT: usize,
+        COLOR: ColorType,
+    > Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     /// get internal buffer to use it (to draw in epd)
     pub fn buffer(&self) -> &[u8] {
@@ -169,7 +165,6 @@ impl<
     }
 }
 
-
 /// Same as `Display`, except that its characteristics are defined at runtime.
 /// See display for documentation as everything is the same except that default
 /// is replaced by a `new` method.
@@ -188,8 +183,8 @@ impl<'a, COLOR: ColorType> DrawTarget for VarDisplay<'a, COLOR> {
     type Error = core::convert::Infallible;
 
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-        where
-            I: IntoIterator<Item=Pixel<Self::Color>>,
+    where
+        I: IntoIterator<Item = Pixel<Self::Color>>,
     {
         for pixel in pixels {
             self.set_pixel(pixel);
@@ -249,9 +244,9 @@ impl<'a, COLOR: ColorType> VarDisplay<'a, COLOR> {
     fn buffer_size(&self) -> usize {
         self.height as usize
             * line_bytes(
-            self.width,
-            COLOR::BITS_PER_PIXEL_PER_BUFFER * COLOR::BUFFER_COUNT,
-        )
+                self.width,
+                COLOR::BITS_PER_PIXEL_PER_BUFFER * COLOR::BUFFER_COUNT,
+            )
     }
 
     /// get internal buffer to use it (to draw in epd)
@@ -285,7 +280,6 @@ impl<'a, COLOR: ColorType> VarDisplay<'a, COLOR> {
         );
     }
 }
-
 
 // This is a function to share code between `Display` and `VarDisplay`
 // It sets a specific pixel in a buffer to a given color.

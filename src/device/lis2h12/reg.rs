@@ -98,8 +98,7 @@ pub const HP_IA1: u8 = 0b0000_0001;
 pub const CTRL_REG2_DEFAULT: u8 = 0b0000_0000;
 
 /// Output Data Rate
-#[derive(Copy, Clone)]
-#[derive(FromPrimitive)]
+#[derive(Copy, Clone, FromPrimitive)]
 pub enum Odr {
     /// Power-down mode
     PowerDown = 0b0000,

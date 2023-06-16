@@ -13,13 +13,13 @@ use crate::ble_debug;
 use crate::ble_notify;
 use crate::common::bitbang;
 use crate::common::ble::conv::ConvExt;
-use crate::common::ble::SERVER;
 use crate::common::ble::services::BleServer;
+use crate::common::ble::SERVER;
 use crate::common::device::bme280;
 use crate::common::device::bme280::Bme280Error;
 use crate::common::device::device_manager::BitbangI2CPins;
-use crate::common::device::lis2h12::{Lis2dh12, SlaveAddr};
 use crate::common::device::lis2h12::reg::{FifoMode, FullScale, Odr};
+use crate::common::device::lis2h12::{Lis2dh12, SlaveAddr};
 
 #[embassy_executor::task]
 pub(crate) async fn read_i2c0_task(i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>) {
@@ -40,15 +40,12 @@ pub(crate) async fn read_i2c0_task(i2c_pins: Arc<Mutex<ThreadModeRawMutex, Bitba
     }
 }
 
-
 async fn read_bme_task(
     i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     server: &BleServer,
 ) -> Result<(), Bme280Error> {
     loop {
         let measurements = {
-            Timer::after(Duration::from_millis(100000000)).await;
-
             let mut i2c_pins = i2c_pins.lock().await;
             let i2c_pins = i2c_pins.deref_mut();
             let mut sda = Flex::new(&mut i2c_pins.sda);
@@ -69,14 +66,22 @@ async fn read_bme_task(
             info!("Prepared BME280 config");
 
             bme.init(bme_config).await?;
-            Timer::after(Duration::from_millis(100)).await;
+            Timer::after(Duration::from_millis(10)).await;
             let measurements = bme.measure().await?;
-            info!("t: {}, h: {}, p: {}", measurements.temperature, measurements.humidity, measurements.pressure);
+            info!(
+                "t: {}, h: {}, p: {}",
+                measurements.temperature, measurements.humidity, measurements.pressure
+            );
 
             Timer::after(Duration::from_millis(100)).await;
 
             bme.measure().await?
         };
+
+        info!(
+            "Final measurements: t: {}, h: {}, p: {}",
+            measurements.temperature, measurements.humidity, measurements.pressure
+        );
 
         let temperature = measurements.temperature.as_temp();
         let humidity = measurements.humidity.as_humidity();
@@ -91,7 +96,6 @@ async fn read_bme_task(
         Timer::after(Duration::from_millis(1000)).await;
     }
 }
-
 
 async fn read_accel_task(
     i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
@@ -122,7 +126,8 @@ async fn read_accel_task(
 
             lis.set_fs(FullScale::G2).await?;
 
-            lis.set_mode(crate::common::device::lis2h12::reg::Mode::Normal).await?;
+            lis.set_mode(crate::common::device::lis2h12::reg::Mode::Normal)
+                .await?;
             info!("Set mode");
 
             lis.enable_axis((true, true, true)).await?;
@@ -142,21 +147,17 @@ async fn read_accel_task(
 
             info!("Sample rate: {}", lis.sample_rate().await?);
 
-
-
             for _ in 0..10 {
                 let a = lis.accel_norm().await?;
-                info!("Accel: ({}, {}, {})", a.x, a.y, a.z);
-                info!("Temp out: {}", lis.get_temp_outf().await?);
-                info!("Stored samples: {}", lis.get_stored_samples().await?);
-
+                // info!("Accel: ({}, {}, {})", a.x, a.y, a.z);
+                // info!("Temp out: {}", lis.get_temp_outf().await?);
+                // info!("Stored samples: {}", lis.get_stored_samples().await?);
             }
         }
 
-        Timer::after(Duration::from_millis(1000)).await;
+        Timer::after(Duration::from_millis(100000)).await;
     }
 }
-
 
 #[macro_export]
 macro_rules! ble_notify {

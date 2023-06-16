@@ -34,9 +34,7 @@ impl<T> CustomStaticCell<T> {
     }
 
     pub fn get(&'static self) -> &'static T {
-        unsafe {
-            (*self.val.get()).assume_init_ref()
-        }
+        unsafe { (*self.val.get()).assume_init_ref() }
     }
 
     #[inline]

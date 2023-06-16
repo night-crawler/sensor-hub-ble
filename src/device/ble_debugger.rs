@@ -10,7 +10,8 @@ use crate::common::ble::SERVER;
 use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
 use crate::common::device::error::DeviceError;
 
-static CHANNEL: Channel<ThreadModeRawMutex, [u8; BLE_DEBUG_ARRAY_LEN], BLE_DEBUG_QUEUE_LEN> = Channel::new();
+static CHANNEL: Channel<ThreadModeRawMutex, [u8; BLE_DEBUG_ARRAY_LEN], BLE_DEBUG_QUEUE_LEN> =
+    Channel::new();
 
 #[embassy_executor::task]
 pub(crate) async fn ble_debug_notify_task() {
@@ -25,7 +26,6 @@ pub(crate) async fn ble_debug_notify_task() {
         }
     }
 }
-
 
 pub struct WriteTo<'a> {
     buf: &'a mut [u8],

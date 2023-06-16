@@ -1,15 +1,13 @@
 //! SPI Commands for the Waveshare 2.13" v2
 
-
-use bit_field::BitField;
 use crate::common::device::epd::traits;
+use bit_field::BitField;
 
 /// Epd2in13 v2
 ///
 /// For more infos about the addresses and what they are doing look into the pdfs
 #[allow(dead_code)]
-#[derive(Copy, Clone)]
-#[derive(defmt::Format)]
+#[derive(Copy, Clone, defmt::Format)]
 pub(crate) enum Command {
     DriverOutputControl = 0x01,
     GateDrivingVoltageCtrl = 0x03,
