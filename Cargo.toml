@@ -26,8 +26,9 @@ embassy-sync = { path = "../embassy/embassy-sync" }
 embassy-executor = { version = "0.2.0", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "nightly", "defmt", "integrated-timers"] }
 embassy-time = { version = "0.1.0", features = ["nightly", "defmt", "defmt-timestamp-uptime"] }
 embassy-sync = { version = "0.2.0" }
-embassy-nrf = { version = "0.1.0", features = ["nightly", "defmt", "nrf52840", "gpiote", "time-driver-rtc1"] }
-embassy-embedded-hal = { version = "0.1.0", features = ["nightly"] }
+embassy-nrf = { version = "0.1.0", features = ["nightly", "defmt", "nrf52840", "gpiote", "time-driver-rtc1", "unstable-traits"] }
+#embassy-embedded-hal = { version = "0.1.0", features = ["nightly"] }
+embedded-hal-async = "0.2.0-alpha.1"
 cortex-m = "0.7.2"
 cortex-m-rt = "0.7.0"
 defmt = "0.3"
@@ -41,13 +42,21 @@ futures = { version = "0.3.5", default-features = false, features = ["async-awai
 fixed = "1.2.0"
 heapless = "0.7"
 atomic-pool = "1.0.0"
-static_cell = "1.0.0"
+static_cell = "1.1"
 smallvec = { version = "1", default-features = false }
 embedded-alloc = "0.5"
 lazy_static = { version = "1.4", default-features = false, features = ["spin_no_std"] }
 thiserror-no-std = "2"
 num-traits = { version = "0.2.15", default-features = false }
 paste = { version = "1", default-features = false }
+bit_field = "0.10"
+rclite = "0.2"
+embedded-graphics-core = "0.4"
+embedded-graphics = "0.8"
+atomic-polyfill = "1.0.2"
+num-derive = "0.3"
+cast = {version = "0.3.0", default-features = false }
+accelerometer = "0.12.0"
 
 [[bin]]
 name = "main"

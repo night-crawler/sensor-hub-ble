@@ -7,13 +7,16 @@ pub struct OutPinManager {
     pub pins: SmallVec<[Output<'static, AnyPin>; 16]>,
 }
 
-
 impl OutPinManager {
-    pub(crate) fn register<P>(&mut self, pin: P) -> Option<&mut Output<'static, AnyPin>> where P: Into<AnyPin> {
+    pub(crate) fn register<P>(&mut self, pin: P) -> Option<&mut Output<'static, AnyPin>>
+    where
+        P: Into<AnyPin>,
+    {
         if self.pins.len() + 1 > 16 {
             return None;
         }
-        self.pins.push(Output::new(pin.into(), Level::Low, OutputDrive::Standard));
+        self.pins
+            .push(Output::new(pin.into(), Level::Low, OutputDrive::Standard));
         self.pins.last_mut()
     }
     pub(crate) fn get(&mut self, index: usize) -> Option<&mut Output<'static, AnyPin>> {
@@ -47,4 +50,3 @@ impl OutPinManager {
         self.all_low();
     }
 }
-

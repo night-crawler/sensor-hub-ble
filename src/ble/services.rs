@@ -1,4 +1,3 @@
-
 #[nrf_softdevice::gatt_service(uuid = "180A")]
 pub(crate) struct DeviceInformationService {
     #[characteristic(uuid = "2a19", read, notify)]
@@ -10,7 +9,6 @@ pub(crate) struct DeviceInformationService {
     #[characteristic(uuid = "2BDE", read, notify)]
     pub(crate) debug: [u8; 64],
 }
-
 
 #[nrf_softdevice::gatt_service(uuid = "5c853275-723b-4754-a329-969d8bc8121d")]
 pub(crate) struct AdcService {

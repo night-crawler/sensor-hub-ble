@@ -9,16 +9,15 @@ use lazy_static::lazy_static;
 
 use crate::common::device::config::{DURATION_LONG_MS, DURATION_SHORT_MS, LED_ANIMATION_QUEUE_LEN};
 
-static CHANNEL: Channel<ThreadModeRawMutex, LedStateAnimation, LED_ANIMATION_QUEUE_LEN> = Channel::new();
+static CHANNEL: Channel<ThreadModeRawMutex, LedStateAnimation, LED_ANIMATION_QUEUE_LEN> =
+    Channel::new();
 static SHORT: Duration = Duration::from_millis(DURATION_SHORT_MS);
 static LONG: Duration = Duration::from_millis(DURATION_LONG_MS);
 
 lazy_static! {
-    pub static ref LED: Mutex<ThreadModeRawMutex, LedManager> = {
-        Mutex::new(LedManager::default())
-    };
+    pub static ref LED: Mutex<ThreadModeRawMutex, LedManager> =
+        { Mutex::new(LedManager::default()) };
 }
-
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -41,7 +40,6 @@ impl From<u8> for LedState {
     }
 }
 
-
 #[derive(Default)]
 pub struct LedManager {
     red: Option<Output<'static, AnyPin>>,
@@ -52,16 +50,33 @@ pub struct LedManager {
 }
 
 impl LedManager {
-    pub fn init<P1, P2, P3, P4>(&mut self, red: P1, green: P2, blue: P3, tx: P4) where
+    pub fn init<P1, P2, P3, P4>(&mut self, red: P1, green: P2, blue: P3, tx: P4)
+    where
         P1: Into<AnyPin>,
         P2: Into<AnyPin>,
         P3: Into<AnyPin>,
         P4: Into<AnyPin>,
     {
-        self.red.replace(Output::new(red.into(), Level::High, OutputDrive::Standard0Disconnect1));
-        self.green.replace(Output::new(green.into(), Level::High, OutputDrive::Standard0Disconnect1));
-        self.blue.replace(Output::new(blue.into(), Level::High, OutputDrive::Standard0Disconnect1));
-        self.tx.replace(Output::new(tx.into(), Level::High, OutputDrive::Standard0Disconnect1));
+        self.red.replace(Output::new(
+            red.into(),
+            Level::High,
+            OutputDrive::Standard0Disconnect1,
+        ));
+        self.green.replace(Output::new(
+            green.into(),
+            Level::High,
+            OutputDrive::Standard0Disconnect1,
+        ));
+        self.blue.replace(Output::new(
+            blue.into(),
+            Level::High,
+            OutputDrive::Standard0Disconnect1,
+        ));
+        self.tx.replace(Output::new(
+            tx.into(),
+            Level::High,
+            OutputDrive::Standard0Disconnect1,
+        ));
     }
 
     pub fn reset(&mut self) {
@@ -136,8 +151,14 @@ impl LedManager {
         self.set_state(LedState::Off);
         Timer::after(SHORT).await;
     }
-}
 
+    pub async fn blink_long(&mut self, state: LedState) {
+        self.set_state(state);
+        Timer::after(LONG).await;
+        self.set_state(LedState::Off);
+        Timer::after(LONG).await;
+    }
+}
 
 pub enum LedStateAnimation {
     Sweep(u16, Duration, Duration),
@@ -215,8 +236,7 @@ pub async fn led_animation_task() {
     }
 }
 
-
-fn index_mask_to_enum_iter(mask: u16) -> impl Iterator<Item=LedState> {
+fn index_mask_to_enum_iter(mask: u16) -> impl Iterator<Item = LedState> {
     (0..(LedState::Off as u8)).filter_map(move |index| {
         if mask & (1 << index) == 0 {
             None

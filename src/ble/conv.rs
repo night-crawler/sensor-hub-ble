@@ -2,7 +2,8 @@ use num_traits::float::FloatCore;
 
 pub trait BleScalarReprExt {
     fn ble_serialize(&self, multiplier: i32, decimal_exponent: i32, binary_exponent: i32) -> Self;
-    fn ble_deserialize(&self, multiplier: i32, decimal_exponent: i32, binary_exponent: i32) -> Self;
+    fn ble_deserialize(&self, multiplier: i32, decimal_exponent: i32, binary_exponent: i32)
+        -> Self;
 }
 
 impl BleScalarReprExt for f32 {
@@ -17,7 +18,12 @@ impl BleScalarReprExt for f32 {
     }
 
     /// R = C * M * 10^d * 2^b
-    fn ble_deserialize(&self, multiplier: i32, decimal_exponent: i32, binary_exponent: i32) -> Self {
+    fn ble_deserialize(
+        &self,
+        multiplier: i32,
+        decimal_exponent: i32,
+        binary_exponent: i32,
+    ) -> Self {
         let mut result = *self * (multiplier as f32);
 
         result *= 10f32.powi(decimal_exponent);
