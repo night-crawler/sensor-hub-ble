@@ -85,7 +85,7 @@ pub(crate) struct Bme280<'a, I: embedded_hal_async::i2c::I2c> {
 
 impl<'a, I: embedded_hal_async::i2c::I2c> Bme280<'a, I>
 where
-    Bme280Error: core::convert::From<<I as embedded_hal_async::i2c::ErrorType>::Error>,
+    Bme280Error: From<<I as embedded_hal_async::i2c::ErrorType>::Error>,
 {
     pub fn new(interface: &'a mut I, address: u8) -> Self {
         Self {

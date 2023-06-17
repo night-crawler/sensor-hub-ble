@@ -12,3 +12,4 @@ pub(crate) mod lis2h12;
 pub(crate) mod nrf_temp;
 pub(crate) mod out_pin_manager;
 pub(crate) mod spi;
+pub(crate) mod veml6040;

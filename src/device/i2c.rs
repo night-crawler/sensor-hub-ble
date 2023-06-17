@@ -1,11 +1,13 @@
 use core::ops::DerefMut;
+use cortex_m::prelude::_embedded_hal_blocking_spi_Write;
 
 use defmt::info;
 use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
+use embassy_nrf::interrupt::InterruptExt;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use futures::join;
+use futures::{FutureExt, join, select_biased};
 use nrf_softdevice::ble::Connection;
 use rclite::Arc;
 
@@ -15,25 +17,39 @@ use crate::common::bitbang;
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::BleServer;
 use crate::common::ble::SERVER;
-use crate::common::device::bme280;
-use crate::common::device::bme280::Bme280Error;
+use crate::common::device::bme280::{BME280_SLEEP_MODE, Bme280Error};
 use crate::common::device::device_manager::BitbangI2CPins;
 use crate::common::device::lis2h12::reg::{FifoMode, FullScale, Odr};
 use crate::common::device::lis2h12::{Lis2dh12, SlaveAddr};
+use crate::common::device::veml6040::{IntegrationTime, MeasurementMode, Veml6040};
+use crate::common::device::{bme280, veml6040};
 
 #[embassy_executor::task]
 pub(crate) async fn read_i2c0_task(i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>) {
     loop {
         let bme_fut = read_bme_task(Arc::clone(&i2c_pins), SERVER.get());
         let accel_fut = read_accel_task(Arc::clone(&i2c_pins), SERVER.get());
+        let color_fut = read_veml_task(Arc::clone(&i2c_pins), SERVER.get());
 
-        let (bme, accel) = join!(bme_fut, accel_fut);
-        if let Err(err) = bme {
-            ble_debug!("Err: {}", err);
-        }
-
-        if let Err(err) = accel {
-            ble_debug!("Err: {:?}", err);
+        select_biased! {
+             result = bme_fut.fuse() => {
+                if let Err(err) = result {
+                    info!("BME Error");
+                    ble_debug!("Err: {}", err);
+                }
+            },
+            result = accel_fut.fuse() => {
+                if let Err(err) = result {
+                    info!("Accel Error");
+                    ble_debug!("Err: {:?}", err);
+                }
+            },
+            result = color_fut.fuse() => {
+                if let Err(err) = result {
+                    info!("Color Error");
+                    ble_debug!("Err: {:?}", err);
+                }
+            },
         }
 
         Timer::after(Duration::from_millis(1000)).await;
@@ -46,6 +62,8 @@ async fn read_bme_task(
 ) -> Result<(), Bme280Error> {
     loop {
         let measurements = {
+            Timer::after(Duration::from_millis(1000000)).await;
+
             let mut i2c_pins = i2c_pins.lock().await;
             let i2c_pins = i2c_pins.deref_mut();
             let mut sda = Flex::new(&mut i2c_pins.sda);
@@ -75,7 +93,11 @@ async fn read_bme_task(
 
             Timer::after(Duration::from_millis(100)).await;
 
-            bme.measure().await?
+            let measurements = bme.measure().await?;
+
+            bme.set_mode(BME280_SLEEP_MODE).await?;
+
+            measurements
         };
 
         info!(
@@ -102,6 +124,8 @@ async fn read_accel_task(
     _server: &BleServer,
 ) -> Result<(), accelerometer::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
+        Timer::after(Duration::from_millis(1000000)).await;
+
         {
             let mut i2c_pins = i2c_pins.lock().await;
 
@@ -156,6 +180,45 @@ async fn read_accel_task(
         }
 
         Timer::after(Duration::from_millis(100000)).await;
+    }
+}
+
+async fn read_veml_task(
+    i2c_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
+    _server: &BleServer,
+) -> Result<(), veml6040::Error<bitbang::i2c::BitbangI2CError>> {
+    loop {
+        let measurements = {
+            let mut i2c_pins = i2c_pins.lock().await;
+
+            let i2c_pins = i2c_pins.deref_mut();
+            let mut sda = Flex::new(&mut i2c_pins.sda);
+            sda.set_as_input_output(Pull::None, OutputDrive::Standard0Disconnect1);
+            let i2c = bitbang::i2c::BitbangI2C::new(
+                Output::new(&mut i2c_pins.scl, Level::High, OutputDrive::Standard0Disconnect1),
+                sda,
+                Default::default(),
+            );
+
+            let mut veml = Veml6040::new(i2c);
+            info!("Initialized veml");
+
+            // veml.enable().await?;
+            // veml.set_measurement_mode(MeasurementMode::Auto).await?;
+            // veml.set_integration_time(IntegrationTime::_40ms).await?;
+            // does not work :(
+            veml.write_config(
+                0x00 + 0x00 + 0x00
+                // VEML6040_IT_40MS + VEML6040_AF_AUTO + VEML6040_SD_ENABLE
+            ).await?;
+
+            Timer::after(Duration::from_millis(40)).await;
+
+            veml.read_all_channels().await?
+        };
+        info!("Final measurements: {}", measurements);
+
+        Timer::after(Duration::from_millis(100)).await;
     }
 }
 

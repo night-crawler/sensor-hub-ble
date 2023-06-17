@@ -12,7 +12,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            delay_duration: Duration::from_hz(10000),
+            delay_duration: Duration::from_hz(20000),
         }
     }
 }
@@ -240,7 +240,7 @@ where
         self.i2c_start().await;
 
         // SAD + W
-        self.i2c_write_byte((address << 1)).await;
+        self.i2c_write_byte(address << 1).await;
         self.check_ack().await?;
 
         self.write_to_slave(write).await?;

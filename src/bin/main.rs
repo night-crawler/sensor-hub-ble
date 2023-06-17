@@ -87,6 +87,7 @@ async fn main(spawner: Spawner) {
             adv_data,
             scan_data,
         };
+        info!("Waiting for connection");
         let conn = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
 
         LedStateAnimation::blink_long(&[LedState::Purple]);

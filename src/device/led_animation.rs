@@ -15,8 +15,7 @@ static SHORT: Duration = Duration::from_millis(DURATION_SHORT_MS);
 static LONG: Duration = Duration::from_millis(DURATION_LONG_MS);
 
 lazy_static! {
-    pub static ref LED: Mutex<ThreadModeRawMutex, LedManager> =
-        { Mutex::new(LedManager::default()) };
+    pub static ref LED: Mutex<ThreadModeRawMutex, LedManager> = Mutex::new(LedManager::default());
 }
 
 #[repr(u8)]
@@ -51,11 +50,11 @@ pub struct LedManager {
 
 impl LedManager {
     pub fn init<P1, P2, P3, P4>(&mut self, red: P1, green: P2, blue: P3, tx: P4)
-    where
-        P1: Into<AnyPin>,
-        P2: Into<AnyPin>,
-        P3: Into<AnyPin>,
-        P4: Into<AnyPin>,
+        where
+            P1: Into<AnyPin>,
+            P2: Into<AnyPin>,
+            P3: Into<AnyPin>,
+            P4: Into<AnyPin>,
     {
         self.red.replace(Output::new(
             red.into(),
@@ -236,7 +235,7 @@ pub async fn led_animation_task() {
     }
 }
 
-fn index_mask_to_enum_iter(mask: u16) -> impl Iterator<Item = LedState> {
+fn index_mask_to_enum_iter(mask: u16) -> impl Iterator<Item=LedState> {
     (0..(LedState::Off as u8)).filter_map(move |index| {
         if mask & (1 << index) == 0 {
             None

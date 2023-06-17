@@ -24,7 +24,7 @@ pub(crate) async fn epd_task(
     control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
 ) {
     loop {
-        Timer::after(Duration::from_secs(0)).await;
+        Timer::after(Duration::from_secs(100000)).await;
 
         info!("EPD task loop started");
         let mut spi_pins = spi_pins.lock().await;
