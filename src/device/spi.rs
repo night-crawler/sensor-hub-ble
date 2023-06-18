@@ -54,13 +54,8 @@ async fn draw_something(
     config.mode = spi_pins.config.mode;
     config.orc = spi_pins.config.orc;
 
-    let mut spi: Spim<SPI2> = Spim::new_txonly(
-        &mut spi_pins.spim,
-        Irqs,
-        &mut spi_pins.sck,
-        &mut spi_pins.mosi,
-        config,
-    );
+    let mut spi: Spim<SPI2> =
+        Spim::new_txonly(&mut spi_pins.spim, Irqs, &mut spi_pins.sck, &mut spi_pins.mosi, config);
 
     let busy = Input::new(&mut control_pins.busy, Pull::Down);
     let cs = Output::new(&mut control_pins.cs, Level::High, OutputDrive::Standard);

@@ -1,4 +1,3 @@
-use defmt::info;
 use embedded_hal_async::i2c;
 use embedded_hal_async::i2c::ErrorType;
 
@@ -143,19 +142,13 @@ where
     pub async fn trigger_measurement(&mut self) -> Result<(), Error<E>> {
         // This bit is not stored to avoid unintended triggers.
         self.i2c
-            .write(
-                DEVICE_ADDRESS,
-                &[Register::CONFIG, self.config | BitFlags::TRIG, 0],
-            )
+            .write(DEVICE_ADDRESS, &[Register::CONFIG, self.config | BitFlags::TRIG, 0])
             .await
             .map_err(Error::I2C)
     }
 
     pub async fn write_config(&mut self, config: u8) -> Result<(), Error<E>> {
-        self.i2c
-            .write(DEVICE_ADDRESS, &[Register::CONFIG, config, 0])
-            .await
-            .map_err(Error::I2C)?;
+        self.i2c.write(DEVICE_ADDRESS, &[Register::CONFIG, config, 0]).await.map_err(Error::I2C)?;
         self.config = config;
         Ok(())
     }

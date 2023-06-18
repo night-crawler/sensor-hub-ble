@@ -3,7 +3,7 @@ use num_traits::float::FloatCore;
 pub trait BleScalarReprExt {
     fn ble_serialize(&self, multiplier: i32, decimal_exponent: i32, binary_exponent: i32) -> Self;
     fn ble_deserialize(&self, multiplier: i32, decimal_exponent: i32, binary_exponent: i32)
-        -> Self;
+    -> Self;
 }
 
 impl BleScalarReprExt for f32 {

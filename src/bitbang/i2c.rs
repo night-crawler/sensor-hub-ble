@@ -11,9 +11,7 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self {
-            delay_duration: Duration::from_hz(20000),
-        }
+        Self { delay_duration: Duration::from_hz(20000) }
     }
 }
 
@@ -134,11 +132,7 @@ where
 
     #[inline]
     async fn check_ack(&mut self) -> Result<(), BitbangI2CError> {
-        if !self.i2c_is_ack().await {
-            Err(BitbangI2CError::NoAck)
-        } else {
-            Ok(())
-        }
+        if !self.i2c_is_ack().await { Err(BitbangI2CError::NoAck) } else { Ok(()) }
     }
 
     #[inline]

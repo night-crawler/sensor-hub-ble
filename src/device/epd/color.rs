@@ -30,10 +30,7 @@ impl Color {
         match val {
             0 => Color::Black,
             1 => Color::White,
-            e => panic!(
-                "DisplayColor only parses 0 and 1 (Black and White) and not `{}`",
-                e
-            ),
+            e => panic!("DisplayColor only parses 0 and 1 (Black and White) and not `{}`", e),
         }
     }
 

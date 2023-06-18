@@ -78,12 +78,7 @@ where
         miso: Option<Input<'d, MISO>>,
         config: Config,
     ) -> Self {
-        let mut spi = Self {
-            sck,
-            mosi,
-            miso,
-            config,
-        };
+        let mut spi = Self { sck, mosi, miso, config };
 
         match config.mode.polarity {
             spim::Polarity::IdleLow => spi.sck.set_low(),

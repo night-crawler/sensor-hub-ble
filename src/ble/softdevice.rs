@@ -16,10 +16,12 @@ pub(crate) fn prepare_softdevice_config() -> Config {
             conn_count: NUM_CONNECTIONS as u8,
             event_length: 24,
         }),
-        conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 256 }),
-        gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t {
-            attr_tab_size: 32768,
+        common_vs_uuid: Some(raw::ble_common_cfg_vs_uuid_t {
+            // sd_ble_uuid_vs_add err NoMem
+            vs_uuid_count: 42,
         }),
+        conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 256 }),
+        gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t { attr_tab_size: 32768 }),
         gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
             adv_set_count: 1,
             periph_role_count: NUM_CONNECTIONS as u8,
@@ -40,31 +42,12 @@ pub(crate) fn prepare_softdevice_config() -> Config {
     }
 }
 
+#[rustfmt::skip]
 pub(crate) fn prepare_adv_scan_data() -> (&'static [u8], &'static [u8]) {
     static ADV_DATA: [u8; 23] = [
-        0x02,
-        0x01,
-        raw::BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE as u8,
-        0x03,
-        0x03,
-        0x09,
-        0x18,
-        0x0F,
-        0x09,
-        b'S',
-        b'e',
-        b'n',
-        b's',
-        b'o',
-        b'r',
-        b' ',
-        b'H',
-        b'u',
-        b'b',
-        b' ',
-        b'B',
-        b'L',
-        b'E',
+        0x02, 0x01, raw::BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE as u8,
+        0x03, 0x03, 0x09, 0x18,
+        0x0F, 0x09, b'S', b'e', b'n', b's', b'o', b'r', b' ', b'H', b'u', b'b', b' ', b'B', b'L', b'E',
     ];
     // scan_rsp_data
     static SCAN_DATA: [u8; 4] = [0x03, 0x03, 0x09, 0x18];

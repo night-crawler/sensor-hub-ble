@@ -6,32 +6,30 @@
 
 extern crate alloc;
 
-use core::sync::atomic::Ordering;
-
 use defmt::{info, unwrap};
 #[allow(unused)]
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
-use embassy_time::{Duration, Timer};
 use embedded_alloc::Heap;
-use nrf_softdevice::ble::{gatt_server, peripheral};
+use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
 use nrf_softdevice::Softdevice;
 #[allow(unused)]
 use panic_probe as _;
 use rclite::Arc;
 
-use crate::common::ble::services::{
-    AdcServiceEvent, BleServer, BleServerEvent, Bme280ServiceEvent, DeviceInformationServiceEvent,
+use crate::common::ble::event_processor::{
+    read_adc_notification_settings_channel, read_bme_notification_settings_channel,
+    read_di_notification_settings_channel,
 };
+use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::ble::SERVER;
-use crate::common::device::adc::ADC_TIMEOUT;
+use crate::common::ble::{DI_SERVICE_EVENTS, NOTIFICATION_SETTINGS, SERVER};
 use crate::common::device::ble_debugger::ble_debug_notify_task;
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::i2c::read_i2c0_task;
-use crate::common::device::led_animation::{LedState, LedStateAnimation, LED};
+use crate::common::device::nrf_temp::notify_nrf_temp;
 use crate::common::device::spi::epd_task;
 
 #[path = "../common.rs"]
@@ -55,16 +53,9 @@ async fn main(spawner: Spawner) {
     }
 
     let device_manager = DeviceManager::new(spawner).await.unwrap();
-    LED.lock().await.blink_short(LedState::White).await;
-
     let sd_config = prepare_softdevice_config();
-    LED.lock().await.blink_short(LedState::White).await;
-
     let sd = Softdevice::enable(&sd_config);
-    LED.lock().await.blink_short(LedState::White).await;
-
     let server = unwrap!(BleServer::new(sd));
-    LED.lock().await.blink_short(LedState::White).await;
 
     SERVER.init_ro(server);
 
@@ -76,6 +67,10 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&device_manager.bbi2c0))));
     unwrap!(spawner.spawn(ble_debug_notify_task()));
     unwrap!(spawner.spawn(softdevice_task(sd)));
+    unwrap!(spawner.spawn(notify_nrf_temp(sd)));
+    unwrap!(spawner.spawn(read_adc_notification_settings_channel()));
+    unwrap!(spawner.spawn(read_bme_notification_settings_channel()));
+    unwrap!(spawner.spawn(read_di_notification_settings_channel()));
 
     let (adv_data, scan_data) = prepare_adv_scan_data();
 
@@ -83,60 +78,26 @@ async fn main(spawner: Spawner) {
 
     loop {
         let config = peripheral::Config::default();
-        let adv = peripheral::ConnectableAdvertisement::ScannableUndirected {
-            adv_data,
-            scan_data,
-        };
+        let adv = peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
         info!("Waiting for connection");
         let conn = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
-
-        LedStateAnimation::blink_long(&[LedState::Purple]);
-        Timer::after(Duration::from_millis(1000)).await;
-
-        let server_fut = gatt_server::run(&conn, SERVER.get(), |e| match e {
-            BleServerEvent::Dis(event) => match event {
-                DeviceInformationServiceEvent::BatteryLevelCccdWrite { notifications } => {
-                    let state = if notifications {
-                        LedState::Green
-                    } else {
-                        LedState::Red
-                    };
-                    LedStateAnimation::blink_short(&[state]);
-                }
-                DeviceInformationServiceEvent::TempCccdWrite { notifications } => {
-                    let state = if notifications {
-                        LedState::Green
-                    } else {
-                        LedState::Red
-                    };
-                    LedStateAnimation::blink_short(&[state]);
-                }
-                DeviceInformationServiceEvent::DebugCccdWrite { .. } => {}
-            },
-            BleServerEvent::Adc(event) => match event {
-                AdcServiceEvent::Voltage0CccdWrite { .. } => {}
-                AdcServiceEvent::Voltage1CccdWrite { .. } => {}
-                AdcServiceEvent::Voltage2CccdWrite { .. } => {}
-                AdcServiceEvent::Voltage3CccdWrite { .. } => {}
-                AdcServiceEvent::Voltage4CccdWrite { .. } => {}
-                AdcServiceEvent::Voltage5CccdWrite { .. } => {}
-                AdcServiceEvent::SamplesCccdWrite { .. } => {}
-                AdcServiceEvent::ElapsedCccdWrite { .. } => {}
-                AdcServiceEvent::TimeoutCccdWrite { .. } => {}
-                AdcServiceEvent::TimeoutWrite(timeout) => {
-                    ADC_TIMEOUT.store(timeout, Ordering::SeqCst);
-                }
-            },
-            BleServerEvent::Bme280(event) => match event {
-                Bme280ServiceEvent::TempCccdWrite { .. } => {}
-                Bme280ServiceEvent::HumidityCccdWrite { .. } => {}
-                Bme280ServiceEvent::PressureCccdWrite { .. } => {}
-                Bme280ServiceEvent::TimeoutWrite(_) => {}
-                Bme280ServiceEvent::TimeoutCccdWrite { .. } => {}
-            },
-        });
-
-        LedStateAnimation::sweep_long(&[LedState::White]);
-        server_fut.await;
+        unwrap!(spawner.spawn(handle_connection(conn)));
     }
+}
+
+#[embassy_executor::task(pool_size = 3)]
+async fn handle_connection(connection: Connection) {
+    let server_fut = gatt_server::run(&connection, SERVER.get(), |e| match e {
+        BleServerEvent::Dis(event) => {
+            if let Err(err) = DI_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+                ble_debug!("Failed to send DI service event")
+            }
+        }
+        BleServerEvent::Adc(event) => {}
+        BleServerEvent::Bme280(event) => {}
+    });
+
+    let _error = server_fut.await;
+    NOTIFICATION_SETTINGS.drop_connection(&connection).await;
+    info!("Connection ended");
 }

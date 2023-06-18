@@ -60,12 +60,12 @@ pub struct Display<
 }
 
 impl<
-        const WIDTH: u32,
-        const HEIGHT: u32,
-        const BWRBIT: bool,
-        const BYTECOUNT: usize,
-        COLOR: ColorType,
-    > Default for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+    const WIDTH: u32,
+    const HEIGHT: u32,
+    const BWRBIT: bool,
+    const BYTECOUNT: usize,
+    COLOR: ColorType,
+> Default for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     /// Initialize display with the color '0', which may not be the same on all device.
     /// Many devices have a bit parameter polarity that should be changed if this is not the right
@@ -88,12 +88,12 @@ impl<
 
 /// For use with embedded_grahics
 impl<
-        const WIDTH: u32,
-        const HEIGHT: u32,
-        const BWRBIT: bool,
-        const BYTECOUNT: usize,
-        COLOR: ColorType,
-    > DrawTarget for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+    const WIDTH: u32,
+    const HEIGHT: u32,
+    const BWRBIT: bool,
+    const BYTECOUNT: usize,
+    COLOR: ColorType,
+> DrawTarget for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     type Color = COLOR;
     type Error = core::convert::Infallible;
@@ -111,12 +111,12 @@ impl<
 
 /// For use with embedded_grahics
 impl<
-        const WIDTH: u32,
-        const HEIGHT: u32,
-        const BWRBIT: bool,
-        const BYTECOUNT: usize,
-        COLOR: ColorType,
-    > OriginDimensions for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+    const WIDTH: u32,
+    const HEIGHT: u32,
+    const BWRBIT: bool,
+    const BYTECOUNT: usize,
+    COLOR: ColorType,
+> OriginDimensions for Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     fn size(&self) -> Size {
         match self.rotation {
@@ -127,12 +127,12 @@ impl<
 }
 
 impl<
-        const WIDTH: u32,
-        const HEIGHT: u32,
-        const BWRBIT: bool,
-        const BYTECOUNT: usize,
-        COLOR: ColorType,
-    > Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
+    const WIDTH: u32,
+    const HEIGHT: u32,
+    const BWRBIT: bool,
+    const BYTECOUNT: usize,
+    COLOR: ColorType,
+> Display<WIDTH, HEIGHT, BWRBIT, BYTECOUNT, COLOR>
 {
     /// get internal buffer to use it (to draw in epd)
     pub fn buffer(&self) -> &[u8] {
@@ -154,14 +154,7 @@ impl<
 
     /// Set a specific pixel color on this display
     pub fn set_pixel(&mut self, pixel: Pixel<COLOR>) {
-        set_pixel(
-            &mut self.buffer,
-            WIDTH,
-            HEIGHT,
-            self.rotation,
-            BWRBIT,
-            pixel,
-        );
+        set_pixel(&mut self.buffer, WIDTH, HEIGHT, self.rotation, BWRBIT, pixel);
     }
 }
 
@@ -243,10 +236,7 @@ impl<'a, COLOR: ColorType> VarDisplay<'a, COLOR> {
     /// get the number of used bytes in the buffer
     fn buffer_size(&self) -> usize {
         self.height as usize
-            * line_bytes(
-                self.width,
-                COLOR::BITS_PER_PIXEL_PER_BUFFER * COLOR::BUFFER_COUNT,
-            )
+            * line_bytes(self.width, COLOR::BITS_PER_PIXEL_PER_BUFFER * COLOR::BUFFER_COUNT)
     }
 
     /// get internal buffer to use it (to draw in epd)

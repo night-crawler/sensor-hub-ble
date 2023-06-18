@@ -79,9 +79,7 @@ fn prepare_nrf_peripherals() -> Peripherals {
 impl DeviceManager {
     pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
-        LED.lock()
-            .await
-            .init(board.P0_22, board.P0_16, board.P0_24, board.P0_08);
+        LED.lock().await.init(board.P0_22, board.P0_16, board.P0_24, board.P0_08);
         info!("Successfully Initialized LED");
 
         let mut led = LED.lock().await;

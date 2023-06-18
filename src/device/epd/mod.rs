@@ -82,24 +82,21 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
     }
 
     pub async fn turn_on_display(&mut self) -> Result<(), E> {
-        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC7])
-            .await?;
+        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC7]).await?;
         self.send_command(Command::MasterActivation).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
     pub async fn turn_on_display_part(&mut self) -> Result<(), E> {
-        self.send_command_with_data(Command::DisplayUpdateControl2, &[0x0f])
-            .await?;
+        self.send_command_with_data(Command::DisplayUpdateControl2, &[0x0f]).await?;
         self.send_command(Command::MasterActivation).await?;
         self.wait_until_idle().await;
         Ok(())
     }
 
     pub async fn lut(&mut self, data: &[u8]) -> Result<(), E> {
-        self.send_command_with_data(Command::WriteLutRegister, data)
-            .await?;
+        self.send_command_with_data(Command::WriteLutRegister, data).await?;
         self.wait_until_idle().await;
         Ok(())
     }
@@ -108,14 +105,10 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         self.lut(lut).await?;
 
         // 0x22,0x17,0x41,0x00,0x32,0x36,
-        self.send_command_with_data(Command::Unknown1, &[0x22])
-            .await?;
-        self.send_command_with_data(Command::GateDrivingVoltageCtrl, &[0x17])
-            .await?;
-        self.send_command_with_data(Command::SourceDrivingVoltageCtrl, &[0x41, 0x0, 0x32])
-            .await?;
-        self.send_command_with_data(Command::WriteVcomRegister, &[0x78])
-            .await?;
+        self.send_command_with_data(Command::Unknown1, &[0x22]).await?;
+        self.send_command_with_data(Command::GateDrivingVoltageCtrl, &[0x17]).await?;
+        self.send_command_with_data(Command::SourceDrivingVoltageCtrl, &[0x41, 0x0, 0x32]).await?;
+        self.send_command_with_data(Command::WriteVcomRegister, &[0x78]).await?;
 
         Ok(())
     }
@@ -148,8 +141,7 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
     }
 
     pub async fn set_cursor(&mut self, x: u32, y: u32) -> Result<(), E> {
-        self.send_command_with_data(Command::SetRamXAddressCounter, &[(x & 0xFF) as u8])
-            .await?;
+        self.send_command_with_data(Command::SetRamXAddressCounter, &[(x & 0xFF) as u8]).await?;
 
         self.send_command_with_data(
             Command::SetRamYAddressCounter,
@@ -168,21 +160,16 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         self.wait_until_idle().await;
         Timer::after(Duration::from_millis(10)).await;
 
-        self.send_command_with_data(Command::DriverOutputControl, &[0xf9, 0x00, 0x00])
-            .await?;
+        self.send_command_with_data(Command::DriverOutputControl, &[0xf9, 0x00, 0x00]).await?;
 
-        self.send_command_with_data(Command::DataEntryModeSetting, &[0x03])
-            .await?;
+        self.send_command_with_data(Command::DataEntryModeSetting, &[0x03]).await?;
 
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_cursor(0, 0).await?;
 
-        self.send_command_with_data(Command::BorderWaveformControl, &[0x05])
-            .await?;
-        self.send_command_with_data(Command::DisplayUpdateControl1, &[0x00, 0x80])
-            .await?;
-        self.send_command_with_data(Command::UnknownTempSensor, &[0x80])
-            .await?;
+        self.send_command_with_data(Command::BorderWaveformControl, &[0x05]).await?;
+        self.send_command_with_data(Command::DisplayUpdateControl1, &[0x00, 0x80]).await?;
+        self.send_command_with_data(Command::UnknownTempSensor, &[0x80]).await?;
 
         self.wait_until_idle().await;
 
@@ -192,8 +179,7 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
     }
 
     pub async fn display(&mut self, image: &[u8]) -> Result<(), E> {
-        self.send_command_with_data(Command::WriteRam, image)
-            .await?;
+        self.send_command_with_data(Command::WriteRam, image).await?;
         // self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         // self.set_cursor(0, 0).await?;
 
@@ -213,10 +199,8 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         )
         .await?;
 
-        self.send_command_with_data(Command::BorderWaveformControl, &[0x80])
-            .await?;
-        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC0])
-            .await?;
+        self.send_command_with_data(Command::BorderWaveformControl, &[0x80]).await?;
+        self.send_command_with_data(Command::DisplayUpdateControl2, &[0xC0]).await?;
         self.send_command(Command::MasterActivation).await?;
 
         self.wait_until_idle().await;
@@ -224,19 +208,16 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1).await?;
         self.set_cursor(0, 0).await?;
 
-        self.send_command_with_data(Command::WriteRam, image)
-            .await?;
+        self.send_command_with_data(Command::WriteRam, image).await?;
         self.turn_on_display_part().await?;
 
         Ok(())
     }
 
     pub async fn display_part_base_image(&mut self, image: &[u8]) -> Result<(), E> {
-        self.send_command_with_data(Command::WriteRam, image)
-            .await?;
+        self.send_command_with_data(Command::WriteRam, image).await?;
 
-        self.send_command_with_data(Command::WriteRamRed, image)
-            .await?;
+        self.send_command_with_data(Command::WriteRamRed, image).await?;
         self.turn_on_display().await?;
 
         Ok(())
@@ -244,16 +225,13 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
 
     pub async fn clear(&mut self, color: Color) -> Result<(), E> {
         self.send_command(Command::WriteRam).await?;
-        self.interface
-            .send_data_x_times(color.get_byte_value(), 4000)
-            .await?;
+        self.interface.send_data_x_times(color.get_byte_value(), 4000).await?;
         self.turn_on_display().await?;
         Ok(())
     }
 
     pub async fn sleep(&mut self) -> Result<(), E> {
-        self.send_command_with_data(Command::DeepSleepMode, &[0x01])
-            .await?;
+        self.send_command_with_data(Command::DeepSleepMode, &[0x01]).await?;
         Ok(())
     }
 }

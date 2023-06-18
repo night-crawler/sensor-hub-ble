@@ -4,10 +4,13 @@ pub(crate) struct DeviceInformationService {
     pub(crate) battery_level: i16,
 
     #[characteristic(uuid = "2A6E", read, notify)]
-    pub(crate) temp: i16,
+    pub(crate) temperature: i16,
 
     #[characteristic(uuid = "2BDE", read, notify)]
     pub(crate) debug: [u8; 64],
+
+    #[characteristic(uuid = "a0e4d2ba-0002-8000-8789-00805f9b34fb", read, write, notify)]
+    pub(crate) timeout: u32,
 }
 
 #[nrf_softdevice::gatt_service(uuid = "5c853275-723b-4754-a329-969d8bc8121d")]
@@ -30,6 +33,15 @@ pub(crate) struct AdcService {
     #[characteristic(uuid = "00002b18-0005-1000-8000-00805f9b34fb", read, notify)]
     pub(crate) voltage5: u16,
 
+    #[characteristic(uuid = "00002b18-0006-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage6: u16,
+
+    #[characteristic(uuid = "00002b18-0007-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage7: u16,
+
+    #[characteristic(uuid = "00002b18-0008-1000-8000-00805f9b34fb", read, notify)]
+    pub(crate) voltage8: u16,
+
     #[characteristic(uuid = "A0E4D2BA-0000-8000-0000-00805f9b34fb", read, notify)]
     pub(crate) samples: u16,
 
@@ -43,7 +55,7 @@ pub(crate) struct AdcService {
 #[nrf_softdevice::gatt_service(uuid = "5c853275-723b-4754-a329-969d4bc8121e")]
 pub(crate) struct Bme280Service {
     #[characteristic(uuid = "2A6E", read, notify)]
-    pub(crate) temp: i16,
+    pub(crate) temperature: i16,
 
     #[characteristic(uuid = "2A6F", read, notify)]
     pub(crate) humidity: u16,

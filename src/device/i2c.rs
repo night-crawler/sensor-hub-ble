@@ -1,13 +1,12 @@
 use core::ops::DerefMut;
-use cortex_m::prelude::_embedded_hal_blocking_spi_Write;
 
+use cortex_m::prelude::_embedded_hal_blocking_spi_Write;
 use defmt::info;
 use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
-use embassy_nrf::interrupt::InterruptExt;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use futures::{FutureExt, join, select_biased};
+use futures::{select_biased, FutureExt};
 use nrf_softdevice::ble::Connection;
 use rclite::Arc;
 
@@ -17,11 +16,11 @@ use crate::common::bitbang;
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::BleServer;
 use crate::common::ble::SERVER;
-use crate::common::device::bme280::{BME280_SLEEP_MODE, Bme280Error};
+use crate::common::device::bme280::{Bme280Error, BME280_SLEEP_MODE};
 use crate::common::device::device_manager::BitbangI2CPins;
 use crate::common::device::lis2h12::reg::{FifoMode, FullScale, Odr};
 use crate::common::device::lis2h12::{Lis2dh12, SlaveAddr};
-use crate::common::device::veml6040::{IntegrationTime, MeasurementMode, Veml6040};
+use crate::common::device::veml6040::Veml6040;
 use crate::common::device::{bme280, veml6040};
 
 #[embassy_executor::task]
@@ -110,7 +109,7 @@ async fn read_bme_task(
         let pressure = measurements.pressure.as_pressure();
 
         for connection in Connection::iter() {
-            ble_notify!(server.bme280, &connection, temp, &temperature);
+            ble_notify!(server.bme280, &connection, temperature, &temperature);
             ble_notify!(server.bme280, &connection, humidity, &humidity);
             ble_notify!(server.bme280, &connection, pressure, &pressure);
         }
@@ -150,8 +149,7 @@ async fn read_accel_task(
 
             lis.set_fs(FullScale::G2).await?;
 
-            lis.set_mode(crate::common::device::lis2h12::reg::Mode::Normal)
-                .await?;
+            lis.set_mode(crate::common::device::lis2h12::reg::Mode::Normal).await?;
             info!("Set mode");
 
             lis.enable_axis((true, true, true)).await?;
@@ -208,9 +206,9 @@ async fn read_veml_task(
             // veml.set_integration_time(IntegrationTime::_40ms).await?;
             // does not work :(
             veml.write_config(
-                0x00 + 0x00 + 0x00
-                // VEML6040_IT_40MS + VEML6040_AF_AUTO + VEML6040_SD_ENABLE
-            ).await?;
+                0x00 + 0x00 + 0x00, // VEML6040_IT_40MS + VEML6040_AF_AUTO + VEML6040_SD_ENABLE
+            )
+            .await?;
 
             Timer::after(Duration::from_millis(40)).await;
 
@@ -218,7 +216,7 @@ async fn read_veml_task(
         };
         info!("Final measurements: {}", measurements);
 
-        Timer::after(Duration::from_millis(100)).await;
+        Timer::after(Duration::from_millis(1000)).await;
     }
 }
 

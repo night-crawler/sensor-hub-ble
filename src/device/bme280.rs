@@ -88,11 +88,7 @@ where
     Bme280Error: From<<I as embedded_hal_async::i2c::ErrorType>::Error>,
 {
     pub fn new(interface: &'a mut I, address: u8) -> Self {
-        Self {
-            address,
-            interface,
-            calibration: None,
-        }
+        Self { address, interface, calibration: None }
     }
 
     pub fn new_primary(interface: &'a mut I) -> Self {
@@ -120,17 +116,13 @@ where
     }
 
     pub async fn write_register(&mut self, register: u8, payload: u8) -> Result<(), Bme280Error> {
-        self.interface
-            .write(self.address, &[register, payload])
-            .await?;
+        self.interface.write(self.address, &[register, payload]).await?;
         Ok(())
     }
 
     pub async fn read_register(&mut self, register: u8) -> Result<u8, Bme280Error> {
         let mut buf = [0u8; 1];
-        self.interface
-            .write_read(self.address, &[register], &mut buf)
-            .await?;
+        self.interface.write_read(self.address, &[register], &mut buf).await?;
         Ok(buf[0])
     }
 
@@ -139,8 +131,7 @@ where
     }
 
     pub async fn soft_reset(&mut self) -> Result<(), Bme280Error> {
-        self.write_register(BME280_RESET_ADDR, BME280_SOFT_RESET_CMD)
-            .await?;
+        self.write_register(BME280_RESET_ADDR, BME280_SOFT_RESET_CMD).await?;
         Timer::after(Duration::from_millis(2)).await; // startup 2ms
         Ok(())
     }
@@ -157,9 +148,7 @@ where
         register: u8,
     ) -> Result<[u8; BME280_P_T_H_DATA_LEN], Bme280Error> {
         let mut data = [0; BME280_P_T_H_DATA_LEN];
-        self.interface
-            .write_read(self.address, &[register], &mut data)
-            .await?;
+        self.interface.write_read(self.address, &[register], &mut data).await?;
         Ok(data)
     }
 
@@ -168,9 +157,7 @@ where
         register: u8,
     ) -> Result<[u8; BME280_P_T_CALIB_DATA_LEN], Bme280Error> {
         let mut data = [0; BME280_P_T_CALIB_DATA_LEN];
-        self.interface
-            .write_read(self.address, &[register], &mut data)
-            .await?;
+        self.interface.write_read(self.address, &[register], &mut data).await?;
         Ok(data)
     }
 
@@ -179,9 +166,7 @@ where
         register: u8,
     ) -> Result<[u8; BME280_H_CALIB_DATA_LEN], Bme280Error> {
         let mut data = [0; BME280_H_CALIB_DATA_LEN];
-        self.interface
-            .write_read(self.address, &[register], &mut data)
-            .await?;
+        self.interface.write_read(self.address, &[register], &mut data).await?;
         Ok(data)
     }
 
@@ -215,12 +200,7 @@ where
         self.write_register(BME280_CTRL_MEAS_ADDR, data).await?;
 
         let data = self.read_register(BME280_CONFIG_ADDR).await?;
-        let data = set_bits!(
-            data,
-            BME280_FILTER_MSK,
-            BME280_FILTER_POS,
-            config.iir_filter.bits()
-        );
+        let data = set_bits!(data, BME280_FILTER_MSK, BME280_FILTER_POS, config.iir_filter.bits());
         self.write_register(BME280_CONFIG_ADDR, data).await
     }
 
@@ -398,11 +378,7 @@ impl Measurements {
         let pressure = Measurements::compensate_pressure(pressure, calibration)?;
         let humidity = Measurements::compensate_humidity(humidity, calibration)?;
 
-        Ok(Measurements {
-            temperature,
-            pressure,
-            humidity,
-        })
+        Ok(Measurements { temperature, pressure, humidity })
     }
 
     fn compensate_temperature(
@@ -587,7 +563,9 @@ pub enum Bme280Error {
     #[error("Failed to parse sensor data")]
     InvalidData,
 
-    #[error("No calibration data is available (probably forgot to call or check BME280::init for failure)")]
+    #[error(
+        "No calibration data is available (probably forgot to call or check BME280::init for failure)"
+    )]
     NoCalibrationData,
 
     #[error("Chip ID doesn't match expected value")]

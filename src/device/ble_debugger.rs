@@ -59,11 +59,7 @@ impl<'a> fmt::Write for WriteTo<'a> {
         rem[..num].copy_from_slice(&raw_s[..num]);
         self.len += raw_s.len();
 
-        if num < raw_s.len() {
-            Err(fmt::Error)
-        } else {
-            Ok(())
-        }
+        if num < raw_s.len() { Err(fmt::Error) } else { Ok(()) }
     }
 }
 

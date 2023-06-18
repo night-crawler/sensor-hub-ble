@@ -1,36 +1,31 @@
 use core::sync::atomic::Ordering;
 
+use crate::ble_debug;
 use embassy_time::{Duration, Timer};
 use nrf_softdevice::ble::Connection;
 use nrf_softdevice::{temperature_celsius, Softdevice};
 
 use crate::common::ble::conv::ConvExt;
-use crate::common::ble::services::BleServer;
-use crate::common::device::adc::ADC_TIMEOUT;
-use crate::common::device::led_animation::{LedState, LedStateAnimation};
+use crate::common::ble::{NOTIFICATION_SETTINGS, SERVER};
 
-pub(crate) async fn notify_nrf_temp<'a>(
-    sd: &Softdevice,
-    server: &'a BleServer,
-    connection: &'a Connection,
-) {
+#[embassy_executor::task]
+pub(crate) async fn notify_nrf_temp(sd: &'static Softdevice) {
     loop {
         let value = match temperature_celsius(sd) {
             Ok(value) => value.to_num::<f32>().as_temp(),
-            Err(_) => {
-                LedStateAnimation::blink_long(&[LedState::Red]);
+            Err(e) => {
+                ble_debug!("Failed to measure temp: {:?}", e);
                 continue;
             }
         };
-        match server.dis.temp_notify(connection, &value) {
-            Ok(_) => {}
-            Err(_) => {
-                let _ = server.dis.temp_set(&value);
+
+        let server = SERVER.get();
+        for connection in Connection::iter() {
+            if let Err(_) = server.dis.temperature_notify(&connection, &value) {
+                let _ = server.dis.temperature_set(&value);
             }
         }
-        Timer::after(Duration::from_millis(
-            ADC_TIMEOUT.load(Ordering::Relaxed) as u64
-        ))
-        .await;
+
+        Timer::after(NOTIFICATION_SETTINGS.get_di_timeout_duration()).await;
     }
 }

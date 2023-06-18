@@ -65,11 +65,7 @@ where
 {
     /// Create a new `LIS2DH12` driver from the given `I2C` peripheral
     pub async fn new(i2c: I2C, addr: SlaveAddr) -> Result<Self, Error<E>> {
-        let mut dev = Self {
-            i2c,
-            addr: addr.addr(),
-            fs: FullScale::G2,
-        };
+        let mut dev = Self { i2c, addr: addr.addr(), fs: FullScale::G2 };
 
         // Ensure we have the correct device ID
         if dev.get_device_id().await? != DEVICE_ID {
@@ -113,10 +109,7 @@ where
     /// Data rate selection,
     /// `CTRL_REG1`: `ODR`
     pub async fn set_odr(&mut self, odr: Odr) -> Result<(), Error<E>> {
-        self.modify_reg(Register::CTRL_REG1, |v| {
-            (v & !ODR_MASK) | ((odr as u8) << 4)
-        })
-        .await?;
+        self.modify_reg(Register::CTRL_REG1, |v| (v & !ODR_MASK) | ((odr as u8) << 4)).await?;
         // By design, when the device from high-resolution configuration (HR) is set to power-down mode (PD),
         // it is recommended to read register REFERENCE (26h) for a complete reset of the filtering block
         // before switching to normal/high-performance mode again.
@@ -161,40 +154,35 @@ where
     /// `CLICK` interrupt on `INT1` pin,
     /// `CTRL_REG3`: `I1_CLICK`
     pub async fn enable_i1_click(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG3, I1_CLICK, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG3, I1_CLICK, enable).await?;
         Ok(())
     }
 
     /// `IA1` interrupt on `INT1` pin,
     /// `CTRL_REG3`: `I1_IA1`
     pub async fn enable_i1_ia1(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG3, I1_IA1, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG3, I1_IA1, enable).await?;
         Ok(())
     }
 
     /// `IA2` interrupt on `INT1` pin,
     /// `CTRL_REG3`: `I1_IA2`
     pub async fn enable_i1_ia2(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG3, I1_IA2, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG3, I1_IA2, enable).await?;
         Ok(())
     }
 
     /// `ZYXDA` interrupt on `INT1` pin,
     /// `CTRL_REG3`: `I2_ZYXDA`
     pub async fn enable_i1_zyxda(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG3, I1_ZYXDA, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG3, I1_ZYXDA, enable).await?;
         Ok(())
     }
 
     /// FIFO watermark on `INT1` pin,
     /// `CTRL_REG3`: `I2_ZYXDA`
     pub async fn enable_i1_wtm(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG3, I1_WTM, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG3, I1_WTM, enable).await?;
         Ok(())
     }
 
@@ -207,8 +195,7 @@ where
     /// FIFO overrun on `INT1` pin,
     /// `CTRL_REG3`: `I1_OVERRUN`
     pub async fn enable_i1_overrun(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG3, I1_OVERRUN, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG3, I1_OVERRUN, enable).await?;
         Ok(())
     }
 
@@ -222,8 +209,7 @@ where
     /// Full-scale selection,
     /// `CTRL_REG4`: `FS`
     pub async fn set_fs(&mut self, fs: FullScale) -> Result<(), Error<E>> {
-        self.modify_reg(Register::CTRL_REG4, |v| (v & !FS_MASK) | ((fs as u8) << 4))
-            .await?;
+        self.modify_reg(Register::CTRL_REG4, |v| (v & !FS_MASK) | ((fs as u8) << 4)).await?;
         {
             self.fs = fs;
         }
@@ -233,8 +219,7 @@ where
     /// Reboot memory content,
     /// `CTRL_REG5`: `BOOT`
     pub async fn reboot(&mut self, reboot: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG5, BOOT, reboot)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG5, BOOT, reboot).await?;
         Ok(())
     }
 
@@ -248,8 +233,7 @@ where
     /// FIFO enable,
     /// `CTRL_REG5`: `FIFO_EN`
     pub async fn enable_fifo(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG5, FIFO_EN, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG5, FIFO_EN, enable).await?;
         Ok(())
     }
 
@@ -257,8 +241,7 @@ where
     /// with INT1_SRC (31h) register cleared by reading INT1_SRC (31h) itself,
     /// `CTRL_REG5`: `LIR_INT1`
     pub async fn enable_lir_int1(&mut self, latch: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG5, LIR_INT1, latch)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG5, LIR_INT1, latch).await?;
         Ok(())
     }
 
@@ -266,8 +249,7 @@ where
     /// when 6D bit on INT1_CFG (30h) is set to 1,
     /// `CTRL_REG5`: `D4D_INT1`
     pub async fn enable_d4d_int1(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG5, D4D_INT1, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG5, D4D_INT1, enable).await?;
         Ok(())
     }
 
@@ -275,8 +257,7 @@ where
     /// with INT2_SRC (35h) register cleared by reading INT2_SRC (35h) itself,
     /// `CTRL_REG5`: `LIR_INT2`
     pub async fn enable_lir_int2(&mut self, latch: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG5, LIR_INT2, latch)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG5, LIR_INT2, latch).await?;
         Ok(())
     }
 
@@ -284,56 +265,49 @@ where
     /// when 6D bit on INT2_CFG (34h) is set to 1,
     /// `CTRL_REG5`: `D4D_INT2`
     pub async fn enable_d4d_int2(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG5, D4D_INT2, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG5, D4D_INT2, enable).await?;
         Ok(())
     }
 
     /// `CLICK` interrupt on `INT2` pin,
     /// `CTRL_REG6`: `I2_CLICK`
     pub async fn enable_i2_click(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG6, I2_CLICK, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG6, I2_CLICK, enable).await?;
         Ok(())
     }
 
     /// `IA1` interrupt on `INT2` pin,
     /// `CTRL_REG6`: `I2_IA1`
     pub async fn enable_i2_ia1(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG6, I2_IA1, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG6, I2_IA1, enable).await?;
         Ok(())
     }
 
     /// `IA2` interrupt on `INT2` pin,
     /// `CTRL_REG6`: `I2_IA2`
     pub async fn enable_i2_ia2(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG6, I2_IA2, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG6, I2_IA2, enable).await?;
         Ok(())
     }
 
     /// Boot interrupt on `INT2` pin,
     /// `CTRL_REG6`: `I2_BOOT`
     pub async fn enable_i2_boot(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG6, I2_BOOT, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG6, I2_BOOT, enable).await?;
         Ok(())
     }
 
     /// Activity interrupt on `INT2` pin,
     /// `CTRL_REG6`: `I2_ACT`
     pub async fn enable_i2_act(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG6, I2_ACT, enable)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG6, I2_ACT, enable).await?;
         Ok(())
     }
 
     /// INT1/INT2 pin polarity,
     /// `CTRL_REG6`: `INT_POLARITY`
     pub async fn set_int_polarity(&mut self, active_low: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CTRL_REG6, INT_POLARITY, active_low)
-            .await?;
+        self.reg_xset_bits(Register::CTRL_REG6, INT_POLARITY, active_low).await?;
         Ok(())
     }
 
@@ -353,20 +327,14 @@ where
     /// FIFO mode selection,
     /// `FIFO_CTRL_REG`: `FM`
     pub async fn set_fm(&mut self, fm: FifoMode) -> Result<(), Error<E>> {
-        self.modify_reg(Register::FIFO_CTRL_REG, |v| {
-            (v & !FM_MASK) | ((fm as u8) << 6)
-        })
-        .await?;
+        self.modify_reg(Register::FIFO_CTRL_REG, |v| (v & !FM_MASK) | ((fm as u8) << 6)).await?;
         Ok(())
     }
 
     /// FIFO threshold,
     /// `FIFO_CTRL_REG`: `FTH`
     pub async fn set_fth(&mut self, fth: u8) -> Result<(), Error<E>> {
-        self.modify_reg(Register::FIFO_CTRL_REG, |v| {
-            (v & !FTH_MASK) | (fth & FTH_MASK)
-        })
-        .await?;
+        self.modify_reg(Register::FIFO_CTRL_REG, |v| (v & !FTH_MASK) | (fth & FTH_MASK)).await?;
         Ok(())
     }
 
@@ -435,8 +403,7 @@ where
     /// until the CLICK_SRC (39h) register is read.
     /// `CLICK_THS`: `LIR_Click`
     pub async fn enable_lir_click(&mut self, latch: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::CLICK_THS, LIR_Click, latch)
-            .await?;
+        self.reg_xset_bits(Register::CLICK_THS, LIR_Click, latch).await?;
         Ok(())
     }
 
@@ -498,8 +465,7 @@ where
     /// `TEMP_CFG_REG`: `TEMP_EN`,
     /// the `BDU` bit in `CTRL_REG4` is also set
     pub async fn enable_temp(&mut self, enable: bool) -> Result<(), Error<E>> {
-        self.reg_xset_bits(Register::TEMP_CFG_REG, TEMP_EN, enable)
-            .await?;
+        self.reg_xset_bits(Register::TEMP_CFG_REG, TEMP_EN, enable).await?;
         if enable {
             // enable block data update (required for temp reading)
             self.reg_set_bits(Register::CTRL_REG4, BDU).await?;
@@ -555,18 +521,12 @@ where
 
     /// Resets all registers to their default
     pub async fn reset(&mut self) -> Result<(), Error<E>> {
-        self.write_reg(Register::CTRL_REG1, CTRL_REG1_DEFAULT)
-            .await?;
-        self.write_reg(Register::CTRL_REG2, CTRL_REG2_DEFAULT)
-            .await?;
-        self.write_reg(Register::CTRL_REG3, CTRL_REG3_DEFAULT)
-            .await?;
-        self.write_reg(Register::CTRL_REG4, CTRL_REG4_DEFAULT)
-            .await?;
-        self.write_reg(Register::CTRL_REG5, CTRL_REG5_DEFAULT)
-            .await?;
-        self.write_reg(Register::CTRL_REG6, CTRL_REG6_DEFAULT)
-            .await?;
+        self.write_reg(Register::CTRL_REG1, CTRL_REG1_DEFAULT).await?;
+        self.write_reg(Register::CTRL_REG2, CTRL_REG2_DEFAULT).await?;
+        self.write_reg(Register::CTRL_REG3, CTRL_REG3_DEFAULT).await?;
+        self.write_reg(Register::CTRL_REG4, CTRL_REG4_DEFAULT).await?;
+        self.write_reg(Register::CTRL_REG5, CTRL_REG5_DEFAULT).await?;
+        self.write_reg(Register::CTRL_REG6, CTRL_REG6_DEFAULT).await?;
         self.write_reg(Register::INT1_CFG, INT_CFG_DEFAULT).await?;
         self.write_reg(Register::INT2_CFG, INT_CFG_DEFAULT).await?;
         self.write_reg(Register::INT1_THS, INT_THS_DEFAULT).await?;
@@ -592,54 +552,20 @@ where
     where
         W: core::fmt::Write,
     {
-        writeln!(
-            w,
-            "CTRL_REG1 (20h) = {:#010b}",
-            self.read_reg(Register::CTRL_REG1).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "CTRL_REG3 (22h) = {:#010b}",
-            self.read_reg(Register::CTRL_REG3).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "CTRL_REG4 (23h) = {:#010b}",
-            self.read_reg(Register::CTRL_REG4).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "CTRL_REG5 (24h) = {:#010b}",
-            self.read_reg(Register::CTRL_REG5).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "CTRL_REG6 (25h) = {:#010b}",
-            self.read_reg(Register::CTRL_REG6).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "INT1_CFG (30h) = {:#010b}",
-            self.read_reg(Register::INT1_CFG).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "INT1_THS (32h) = {:#010b}",
-            self.read_reg(Register::INT1_THS).await?
-        )
-        .unwrap();
-        writeln!(
-            w,
-            "FIFO_SRC_REG (2Fh) = {:#010b}",
-            self.read_reg(Register::FIFO_SRC_REG).await?
-        )
-        .unwrap();
+        writeln!(w, "CTRL_REG1 (20h) = {:#010b}", self.read_reg(Register::CTRL_REG1).await?)
+            .unwrap();
+        writeln!(w, "CTRL_REG3 (22h) = {:#010b}", self.read_reg(Register::CTRL_REG3).await?)
+            .unwrap();
+        writeln!(w, "CTRL_REG4 (23h) = {:#010b}", self.read_reg(Register::CTRL_REG4).await?)
+            .unwrap();
+        writeln!(w, "CTRL_REG5 (24h) = {:#010b}", self.read_reg(Register::CTRL_REG5).await?)
+            .unwrap();
+        writeln!(w, "CTRL_REG6 (25h) = {:#010b}", self.read_reg(Register::CTRL_REG6).await?)
+            .unwrap();
+        writeln!(w, "INT1_CFG (30h) = {:#010b}", self.read_reg(Register::INT1_CFG).await?).unwrap();
+        writeln!(w, "INT1_THS (32h) = {:#010b}", self.read_reg(Register::INT1_THS).await?).unwrap();
+        writeln!(w, "FIFO_SRC_REG (2Fh) = {:#010b}", self.read_reg(Register::FIFO_SRC_REG).await?)
+            .unwrap();
         writeln!(
             w,
             "FIFO_CTRL_REG (2Fh) = {:#010b}",
@@ -652,17 +578,13 @@ where
     #[inline]
     async fn read_reg(&mut self, reg: Register) -> Result<u8, E> {
         let mut buf = [0u8];
-        self.i2c
-            .write_read(self.addr, &[reg.addr()], &mut buf)
-            .await?;
+        self.i2c.write_read(self.addr, &[reg.addr()], &mut buf).await?;
         Ok(buf[0])
     }
 
     #[inline]
     async fn read_regs(&mut self, reg: Register, buffer: &mut [u8]) -> Result<(), E> {
-        self.i2c
-            .write_read(self.addr, &[reg.addr() | I2C_SUB_MULTI], buffer)
-            .await
+        self.i2c.write_read(self.addr, &[reg.addr() | I2C_SUB_MULTI], buffer).await
     }
 
     #[inline]
@@ -692,11 +614,7 @@ where
 
     #[inline]
     async fn reg_xset_bits(&mut self, reg: Register, bits: u8, set: bool) -> Result<(), E> {
-        if set {
-            self.reg_set_bits(reg, bits).await
-        } else {
-            self.reg_reset_bits(reg, bits).await
-        }
+        if set { self.reg_set_bits(reg, bits).await } else { self.reg_reset_bits(reg, bits).await }
     }
 }
 
@@ -769,10 +687,7 @@ where
     E: Debug,
 {
     fn new(dev: &'a mut Lis2dh12<I2C>) -> Self {
-        Self {
-            dev,
-            reg: PhantomData,
-        }
+        Self { dev, reg: PhantomData }
     }
 
     /// Disable interrupt,
@@ -785,9 +700,7 @@ where
     /// AOI-6D Interrupt mode,
     /// `INTx_CFG`: `AOI`, `6D`
     pub async fn set_mode(&mut self, mode: Aoi6d) -> Result<(), Error<E>> {
-        self.dev
-            .modify_reg(REG::reg_cfg(), |v| (v & !AOI_6D_MASK) | ((mode as u8) << 6))
-            .await?;
+        self.dev.modify_reg(REG::reg_cfg(), |v| (v & !AOI_6D_MASK) | ((mode as u8) << 6)).await?;
         Ok(())
     }
 

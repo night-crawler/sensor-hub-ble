@@ -23,14 +23,7 @@ impl<'a, I: SpiBusWrite + SpiBusRead> EpdControls<'a, I> {
         dc: Output<'a, AnyPin>,
         rst: Output<'a, AnyPin>,
     ) -> Self {
-        Self {
-            interface,
-            busy,
-            cs,
-            dc,
-            rst,
-            delay_us: 10_000,
-        }
+        Self { interface, busy, cs, dc, rst, delay_us: 10_000 }
     }
 }
 
