@@ -1,18 +1,21 @@
 use alloc::collections::BTreeMap;
 use core::sync::atomic::{AtomicU32, Ordering};
-use defmt::info;
 
-use crate::common::ble::{
-    ADC_SERVICE_EVENTS, BME_SERVICE_EVENTS, DI_SERVICE_EVENTS, NOTIFICATION_SETTINGS,
-};
+use defmt::info;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::Duration;
 use nrf_softdevice::ble::Connection;
 
+use crate::common::ble::{
+    ADC_SERVICE_EVENTS, BME_SERVICE_EVENTS, BME_TASK_CONDITION, DI_SERVICE_EVENTS,
+    NOTIFICATION_SETTINGS,
+};
 use crate::common::ble::services::{
     AdcServiceEvent, Bme280ServiceEvent, DeviceInformationServiceEvent,
 };
+use crate::common::ble::traits::DetermineTaskState;
+use crate::common::util::condition::Condition;
 use crate::impl_set_notification;
 
 #[derive(Default)]
@@ -41,6 +44,12 @@ pub(crate) struct DiNotificationSettings {
     pub(crate) temperature: bool,
     pub(crate) battery_level: bool,
     pub(crate) debug: bool,
+}
+
+impl DetermineTaskState for BmeNotificationSettings {
+    fn determine_task_state(&self) -> bool {
+        self.humidity || self.pressure || self.temperature
+    }
 }
 
 pub(crate) struct EventProcessor {
@@ -119,6 +128,13 @@ impl EventProcessor {
             Humidity,
             Pressure
         );
+
+        Self::set_task_enabled_state(&BME_TASK_CONDITION, &settings_map).await;
+    }
+
+    async fn set_task_enabled_state<T>(condition: &Condition, settings: &BTreeMap<Connection, T>) where T: DetermineTaskState {
+        let should_enable = settings.values().any(|settings| settings.determine_task_state());
+        condition.set(should_enable);
     }
 
     pub(crate) fn get_bme_timeout_duration(&self) -> Duration {
@@ -152,7 +168,17 @@ impl EventProcessor {
     }
 
     pub(crate) async fn drop_connection(&self, connection: &Connection) {
-        self.adc_settings.lock().await.remove(connection);
+        {
+            self.adc_settings.lock().await.remove(connection);
+        }
+        {
+            let mut settings_map = self.bme_settings.lock().await;
+            settings_map.remove(connection);
+            Self::set_task_enabled_state(&BME_TASK_CONDITION, &settings_map).await;
+        }
+        {
+            self.di_settings.lock().await.remove(connection);
+        }
     }
 }
 

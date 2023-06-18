@@ -15,7 +15,7 @@ use crate::ble_notify;
 use crate::common::bitbang;
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::BleServer;
-use crate::common::ble::SERVER;
+use crate::common::ble::{BME_TASK_CONDITION, SERVER};
 use crate::common::device::bme280::{Bme280Error, BME280_SLEEP_MODE};
 use crate::common::device::device_manager::BitbangI2CPins;
 use crate::common::device::lis2h12::reg::{FifoMode, FullScale, Odr};
@@ -60,9 +60,8 @@ async fn read_bme_task(
     server: &BleServer,
 ) -> Result<(), Bme280Error> {
     loop {
+        let _token = BME_TASK_CONDITION.lock().await;
         let measurements = {
-            Timer::after(Duration::from_millis(1000000)).await;
-
             let mut i2c_pins = i2c_pins.lock().await;
             let i2c_pins = i2c_pins.deref_mut();
             let mut sda = Flex::new(&mut i2c_pins.sda);
@@ -124,7 +123,6 @@ async fn read_accel_task(
 ) -> Result<(), accelerometer::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
         Timer::after(Duration::from_millis(1000000)).await;
-
         {
             let mut i2c_pins = i2c_pins.lock().await;
 
@@ -186,6 +184,8 @@ async fn read_veml_task(
     _server: &BleServer,
 ) -> Result<(), veml6040::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
+        Timer::after(Duration::from_millis(1000000)).await;
+
         let measurements = {
             let mut i2c_pins = i2c_pins.lock().await;
 

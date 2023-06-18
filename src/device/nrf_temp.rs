@@ -1,10 +1,8 @@
-use core::sync::atomic::Ordering;
-
-use crate::ble_debug;
-use embassy_time::{Duration, Timer};
+use embassy_time::Timer;
 use nrf_softdevice::ble::Connection;
 use nrf_softdevice::{temperature_celsius, Softdevice};
 
+use crate::ble_debug;
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::{NOTIFICATION_SETTINGS, SERVER};
 

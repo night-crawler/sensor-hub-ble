@@ -1,6 +1,3 @@
-use crate::common::device::error::DeviceError;
-use nrf_softdevice::ble::Connection;
-
-pub(crate) trait ConnectionEventHandler {
-    fn handle(&self, connection: &Connection) -> Result<(), DeviceError>;
+pub(crate) trait DetermineTaskState {
+    fn determine_task_state(&self) -> bool;
 }

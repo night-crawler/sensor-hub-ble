@@ -25,7 +25,7 @@ use crate::common::ble::event_processor::{
 };
 use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::ble::{DI_SERVICE_EVENTS, NOTIFICATION_SETTINGS, SERVER};
+use crate::common::ble::{ADC_SERVICE_EVENTS, BME_SERVICE_EVENTS, DI_SERVICE_EVENTS, NOTIFICATION_SETTINGS, SERVER};
 use crate::common::device::ble_debugger::ble_debug_notify_task;
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::i2c::read_i2c0_task;
@@ -89,12 +89,20 @@ async fn main(spawner: Spawner) {
 async fn handle_connection(connection: Connection) {
     let server_fut = gatt_server::run(&connection, SERVER.get(), |e| match e {
         BleServerEvent::Dis(event) => {
-            if let Err(err) = DI_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+            if let Err(_) = DI_SERVICE_EVENTS.try_send((connection.clone(), event)) {
                 ble_debug!("Failed to send DI service event")
             }
         }
-        BleServerEvent::Adc(event) => {}
-        BleServerEvent::Bme280(event) => {}
+        BleServerEvent::Adc(event) => {
+            if let Err(_) = ADC_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+                ble_debug!("Failed to send DI service event")
+            }
+        }
+        BleServerEvent::Bme280(event) => {
+            if let Err(_) = BME_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+                ble_debug!("Failed to send DI service event")
+            }
+        }
     });
 
     let _error = server_fut.await;
