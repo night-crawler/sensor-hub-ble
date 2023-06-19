@@ -36,11 +36,8 @@ impl Condition {
     }
 
     pub fn enable(&self) {
-        match self.is_enabled.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed) {
-            Ok(_) => {
-                let _ = self.channel.try_send(());
-            }
-            Err(_) => {}
+        if let Ok(_) = self.is_enabled.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed) {
+            let _ = self.channel.try_send(());
         }
     }
 
