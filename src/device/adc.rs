@@ -1,14 +1,12 @@
-use core::sync::atomic::{AtomicU32, Ordering};
-
 use embassy_nrf::saadc::{CallbackResult, Saadc};
 use embassy_nrf::timer::Frequency;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::{Instant, Timer};
 use nrf_softdevice::ble::Connection;
 use paste::paste;
 
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::{AdcService, BleServer};
-use crate::common::ble::NOTIFICATION_SETTINGS;
+use crate::common::ble::ADC_EVENT_PROCESSOR;
 use crate::impl_set_many;
 
 pub(crate) async fn notify_adc_value<'a, const N: usize>(
@@ -59,7 +57,7 @@ pub(crate) async fn notify_adc_value<'a, const N: usize>(
         let elapsed = start_time.elapsed().as_micros();
         let _ = server.adc.elapsed_notify(connection, &elapsed);
 
-        Timer::after(NOTIFICATION_SETTINGS.get_adc_timeout_duration()).await;
+        Timer::after(ADC_EVENT_PROCESSOR.get_timeout_duration()).await;
     }
 }
 

@@ -4,12 +4,14 @@ use embassy_time::{Duration, Timer};
 use embedded_hal_async::spi::{ErrorKind, ErrorType, SpiBus, SpiBusFlush, SpiBusRead, SpiBusWrite};
 
 #[derive(Debug, defmt::Format)]
+#[allow(unused)]
 pub enum SpiBbError {
     Bus,
     NoData,
 }
 
 #[derive(defmt::Format, Clone, Copy, Default)]
+#[allow(unused)]
 pub enum BitOrder {
     #[default]
     MSBFirst,
@@ -39,6 +41,7 @@ impl Default for Config {
     }
 }
 
+#[allow(unused)]
 pub struct SpiBb<'d, SCK = AnyPin, MOSI = AnyPin, MISO = AnyPin>
 where
     SCK: GpioPin + 'd,

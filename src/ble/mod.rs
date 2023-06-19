@@ -1,14 +1,16 @@
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
-use lazy_static::lazy_static;
 use nrf_softdevice::ble::Connection;
 
-use crate::common::ble::event_processor::EventProcessor;
+use crate::common::ble::event_processor::{
+    AccelerometerNotificationSettings, AdcNotificationSettings, BmeNotificationSettings,
+    ColorNotificationSettings, DiNotificationSettings, EventProcessor,
+};
 use crate::common::ble::services::{
-    AdcServiceEvent, BleServer, Bme280ServiceEvent, DeviceInformationServiceEvent,
+    AccelerometerServiceEvent, AdcServiceEvent, BleServer, Bme280ServiceEvent, ColorServiceEvent,
+    DeviceInformationServiceEvent,
 };
 use crate::common::device::config::NUM_CONNECTIONS;
-use crate::common::util::condition::Condition;
 use crate::common::util::custom_static_cell::CustomStaticCell;
 
 pub(crate) mod conv;
@@ -38,8 +40,31 @@ pub(crate) static DI_SERVICE_EVENTS: Channel<
     NUM_CONNECTIONS,
 > = Channel::new();
 
-pub(crate) static BME_TASK_CONDITION: Condition = Condition::new();
+pub(crate) static ACCELEROMETER_SERVICE_EVENTS: Channel<
+    ThreadModeRawMutex,
+    (Connection, AccelerometerServiceEvent),
+    NUM_CONNECTIONS,
+> = Channel::new();
 
-lazy_static! {
-    pub(crate) static ref NOTIFICATION_SETTINGS: EventProcessor = EventProcessor::default();
-}
+pub(crate) static COLOR_SERVICE_EVENTS: Channel<
+    ThreadModeRawMutex,
+    (Connection, ColorServiceEvent),
+    NUM_CONNECTIONS,
+> = Channel::new();
+
+pub(crate) static DEVICE_EVENT_PROCESSOR: EventProcessor<
+    DiNotificationSettings,
+    DeviceInformationServiceEvent,
+> = EventProcessor::new();
+pub(crate) static BME_EVENT_PROCESSOR: EventProcessor<BmeNotificationSettings, Bme280ServiceEvent> =
+    EventProcessor::new();
+pub(crate) static ADC_EVENT_PROCESSOR: EventProcessor<AdcNotificationSettings, AdcServiceEvent> =
+    EventProcessor::new();
+pub(crate) static ACCELEROMETER_EVENT_PROCESSOR: EventProcessor<
+    AccelerometerNotificationSettings,
+    AccelerometerServiceEvent,
+> = EventProcessor::new();
+pub(crate) static COLOR_EVENT_PROCESSOR: EventProcessor<
+    ColorNotificationSettings,
+    ColorServiceEvent,
+> = EventProcessor::new();

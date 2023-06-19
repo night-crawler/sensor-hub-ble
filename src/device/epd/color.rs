@@ -26,6 +26,7 @@ impl Color {
     }
 
     /// Parses from u8 to Color
+    #[allow(unused)]
     fn from_u8(val: u8) -> Self {
         match val {
             0 => Color::Black,

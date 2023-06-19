@@ -76,6 +76,6 @@ macro_rules! ble_debug {
     (
         $($t:tt)*
     ) => {{
-        let _ = $crate::common::device::ble_debugger::ble_debug_format(format_args!($($t)*));
+        let _ = $crate::common::util::ble_debugger::ble_debug_format(format_args!($($t)*));
     }};
 }

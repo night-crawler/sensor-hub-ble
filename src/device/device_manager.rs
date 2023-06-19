@@ -30,6 +30,7 @@ bind_interrupts!(pub(crate) struct Irqs {
     SPIM2_SPIS2_SPI2 => spim::InterruptHandler<peripherals::SPI2>;
 });
 
+#[allow(unused)]
 pub(crate) struct I2CPins<T> {
     pub(crate) twim: T,
     pub(crate) sda: AnyPin,

@@ -20,17 +20,22 @@ use panic_probe as _;
 use rclite::Arc;
 
 use crate::common::ble::event_processor::{
-    read_adc_notification_settings_channel, read_bme_notification_settings_channel,
+    read_accelerometer_notification_settings_channel, read_adc_notification_settings_channel,
+    read_bme_notification_settings_channel, read_color_notification_settings_channel,
     read_di_notification_settings_channel,
 };
 use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::ble::{ADC_SERVICE_EVENTS, BME_SERVICE_EVENTS, DI_SERVICE_EVENTS, NOTIFICATION_SETTINGS, SERVER};
-use crate::common::device::ble_debugger::ble_debug_notify_task;
+use crate::common::ble::{
+    ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR,
+    ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR,
+    COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS, SERVER,
+};
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::i2c::read_i2c0_task;
 use crate::common::device::nrf_temp::notify_nrf_temp;
 use crate::common::device::spi::epd_task;
+use common::util::ble_debugger::ble_debug_notify_task;
 
 #[path = "../common.rs"]
 mod common;
@@ -68,9 +73,12 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(ble_debug_notify_task()));
     unwrap!(spawner.spawn(softdevice_task(sd)));
     unwrap!(spawner.spawn(notify_nrf_temp(sd)));
+
     unwrap!(spawner.spawn(read_adc_notification_settings_channel()));
     unwrap!(spawner.spawn(read_bme_notification_settings_channel()));
     unwrap!(spawner.spawn(read_di_notification_settings_channel()));
+    unwrap!(spawner.spawn(read_accelerometer_notification_settings_channel()));
+    unwrap!(spawner.spawn(read_color_notification_settings_channel()));
 
     let (adv_data, scan_data) = prepare_adv_scan_data();
 
@@ -87,25 +95,45 @@ async fn main(spawner: Spawner) {
 
 #[embassy_executor::task(pool_size = 3)]
 async fn handle_connection(connection: Connection) {
+    DEVICE_EVENT_PROCESSOR.register_connection(&connection).await;
+    BME_EVENT_PROCESSOR.register_connection(&connection).await;
+    ADC_EVENT_PROCESSOR.register_connection(&connection).await;
+    ACCELEROMETER_EVENT_PROCESSOR.register_connection(&connection).await;
+    COLOR_EVENT_PROCESSOR.register_connection(&connection).await;
+
     let server_fut = gatt_server::run(&connection, SERVER.get(), |e| match e {
         BleServerEvent::Dis(event) => {
-            if let Err(_) = DI_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+            if DI_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
                 ble_debug!("Failed to send DI service event")
             }
         }
         BleServerEvent::Adc(event) => {
-            if let Err(_) = ADC_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+            if ADC_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
                 ble_debug!("Failed to send DI service event")
             }
         }
         BleServerEvent::Bme280(event) => {
-            if let Err(_) = BME_SERVICE_EVENTS.try_send((connection.clone(), event)) {
+            if BME_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
                 ble_debug!("Failed to send DI service event")
+            }
+        }
+        BleServerEvent::Accelerometer(event) => {
+            if ACCELEROMETER_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
+                ble_debug!("Failed to send Accelerometer service event")
+            }
+        }
+        BleServerEvent::Color(event) => {
+            if COLOR_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
+                ble_debug!("Failed to send Color service event")
             }
         }
     });
 
     let _error = server_fut.await;
-    NOTIFICATION_SETTINGS.drop_connection(&connection).await;
-    info!("Connection ended");
+    DEVICE_EVENT_PROCESSOR.drop_connection(&connection).await;
+    BME_EVENT_PROCESSOR.drop_connection(&connection).await;
+    ADC_EVENT_PROCESSOR.drop_connection(&connection).await;
+    ACCELEROMETER_EVENT_PROCESSOR.drop_connection(&connection).await;
+    COLOR_EVENT_PROCESSOR.drop_connection(&connection).await;
+    info!("Connection closed");
 }

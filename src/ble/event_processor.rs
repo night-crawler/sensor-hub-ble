@@ -1,4 +1,5 @@
 use alloc::collections::BTreeMap;
+use core::marker::PhantomData;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 use defmt::info;
@@ -7,18 +8,40 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::Duration;
 use nrf_softdevice::ble::Connection;
 
-use crate::common::ble::{
-    ADC_SERVICE_EVENTS, BME_SERVICE_EVENTS, BME_TASK_CONDITION, DI_SERVICE_EVENTS,
-    NOTIFICATION_SETTINGS,
-};
 use crate::common::ble::services::{
-    AdcServiceEvent, Bme280ServiceEvent, DeviceInformationServiceEvent,
+    AccelerometerServiceEvent, AdcServiceEvent, Bme280ServiceEvent, ColorServiceEvent,
+    DeviceInformationServiceEvent,
 };
-use crate::common::ble::traits::DetermineTaskState;
-use crate::common::util::condition::Condition;
-use crate::impl_set_notification;
+use crate::common::ble::traits::{
+    IsTaskEnabled, SettingsEventConsumer, TimeoutEventCharacteristic,
+};
+use crate::common::ble::{
+    ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR,
+    ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR,
+    COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS,
+};
+use crate::common::util::condition::{Condition, ConditionToken};
+use crate::{
+    impl_is_task_enabled, impl_read_event_channel, impl_set_notification,
+    impl_settings_event_consumer, impl_timeout_event_characteristic,
+};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
+pub(crate) struct AccelerometerNotificationSettings {
+    pub(crate) x: bool,
+    pub(crate) y: bool,
+    pub(crate) z: bool,
+}
+
+#[derive(Default, Clone)]
+pub(crate) struct ColorNotificationSettings {
+    pub(crate) red: bool,
+    pub(crate) green: bool,
+    pub(crate) blue: bool,
+    pub(crate) white: bool,
+}
+
+#[derive(Default, Clone)]
 pub(crate) struct AdcNotificationSettings {
     pub(crate) voltage1: bool,
     pub(crate) voltage2: bool,
@@ -32,176 +55,159 @@ pub(crate) struct AdcNotificationSettings {
     pub(crate) elapsed: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct BmeNotificationSettings {
     pub(crate) temperature: bool,
     pub(crate) humidity: bool,
     pub(crate) pressure: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct DiNotificationSettings {
     pub(crate) temperature: bool,
     pub(crate) battery_level: bool,
     pub(crate) debug: bool,
 }
 
-impl DetermineTaskState for BmeNotificationSettings {
-    fn determine_task_state(&self) -> bool {
-        self.humidity || self.pressure || self.temperature
-    }
+pub(crate) struct EventProcessor<S, E> {
+    notification_settings: Mutex<ThreadModeRawMutex, BTreeMap<Connection, S>>,
+    timeout: AtomicU32,
+    condition: Condition,
+    _phantom_data: PhantomData<E>,
 }
 
-pub(crate) struct EventProcessor {
-    adc_settings: Mutex<ThreadModeRawMutex, BTreeMap<Connection, AdcNotificationSettings>>,
-    adc_timeout: AtomicU32,
-
-    bme_settings: Mutex<ThreadModeRawMutex, BTreeMap<Connection, BmeNotificationSettings>>,
-    bme_timeout: AtomicU32,
-
-    di_settings: Mutex<ThreadModeRawMutex, BTreeMap<Connection, DiNotificationSettings>>,
-    di_timeout: AtomicU32,
-}
-
-impl Default for EventProcessor {
-    fn default() -> Self {
-        EventProcessor {
-            adc_settings: Mutex::new(Default::default()),
-            adc_timeout: AtomicU32::new(1000),
-
-            bme_settings: Mutex::new(Default::default()),
-            bme_timeout: AtomicU32::new(1000),
-
-            di_settings: Mutex::new(Default::default()),
-            di_timeout: AtomicU32::new(1000),
+impl<S, E> EventProcessor<S, E>
+where
+    S: Default + SettingsEventConsumer<E> + IsTaskEnabled + Clone,
+    E: TimeoutEventCharacteristic,
+{
+    pub(crate) const fn new() -> Self {
+        Self {
+            notification_settings: Mutex::new(BTreeMap::new()),
+            timeout: AtomicU32::new(1000),
+            condition: Condition::new(),
+            _phantom_data: PhantomData,
         }
     }
-}
 
-impl EventProcessor {
-    pub(crate) async fn process_adc_event(&self, connection: Connection, event: AdcServiceEvent) {
-        let mut settings_map = self.adc_settings.lock().await;
-        let current_settings = settings_map.entry(connection).or_default();
-
-        if let AdcServiceEvent::TimeoutWrite(timeout) = &event {
-            self.adc_timeout.store(*timeout, Ordering::SeqCst);
+    pub(crate) async fn process_event(&self, connection: Connection, event: E) {
+        if let Some(timeout) = event.get_timeout() {
+            self.timeout.store(timeout, Ordering::SeqCst);
         }
 
-        impl_set_notification!(
-            AdcServiceEvent,
-            event,
-            current_settings,
-            Voltage1,
-            Voltage2,
-            Voltage3,
-            Voltage4,
-            Voltage5,
-            Voltage6,
-            Voltage7,
-            Voltage8,
-            Samples,
-            Elapsed
-        );
+        let mut settings_map = self.notification_settings.lock().await;
+        let settings = settings_map.entry(connection).or_default();
+        settings.consume(event);
+
+        self.set_task_enabled_state(&settings_map);
     }
 
-    pub(crate) fn get_adc_timeout_duration(&self) -> Duration {
-        Duration::from_millis(self.adc_timeout.load(Ordering::Relaxed) as u64)
+    pub(crate) fn get_timeout_duration(&self) -> Duration {
+        Duration::from_millis(self.timeout.load(Ordering::Relaxed) as u64)
     }
 
-    pub(crate) async fn process_bme_event(
-        &self,
-        connection: Connection,
-        event: Bme280ServiceEvent,
-    ) {
-        let mut settings_map = self.bme_settings.lock().await;
-        let current_settings = settings_map.entry(connection).or_default();
-
-        if let Bme280ServiceEvent::TimeoutWrite(timeout) = &event {
-            self.bme_timeout.store(*timeout, Ordering::SeqCst);
-        }
-
-        impl_set_notification!(
-            Bme280ServiceEvent,
-            event,
-            current_settings,
-            Temperature,
-            Humidity,
-            Pressure
-        );
-
-        Self::set_task_enabled_state(&BME_TASK_CONDITION, &settings_map).await;
+    fn set_task_enabled_state(&self, settings: &BTreeMap<Connection, S>) {
+        let should_enable = settings.values().any(|settings| settings.is_task_enabled());
+        self.condition.set(should_enable);
     }
 
-    async fn set_task_enabled_state<T>(condition: &Condition, settings: &BTreeMap<Connection, T>) where T: DetermineTaskState {
-        let should_enable = settings.values().any(|settings| settings.determine_task_state());
-        condition.set(should_enable);
-    }
-
-    pub(crate) fn get_bme_timeout_duration(&self) -> Duration {
-        Duration::from_millis(self.bme_timeout.load(Ordering::Relaxed) as u64)
-    }
-
-    pub(crate) async fn process_di_event(
-        &self,
-        connection: Connection,
-        event: DeviceInformationServiceEvent,
-    ) {
-        let mut settings_map = self.di_settings.lock().await;
-        let current_settings = settings_map.entry(connection).or_default();
-
-        if let DeviceInformationServiceEvent::TimeoutWrite(timeout) = &event {
-            self.di_timeout.store(*timeout, Ordering::SeqCst);
-        }
-
-        impl_set_notification!(
-            DeviceInformationServiceEvent,
-            event,
-            current_settings,
-            BatteryLevel,
-            Temperature,
-            Debug
-        );
-    }
-
-    pub(crate) fn get_di_timeout_duration(&self) -> Duration {
-        Duration::from_millis(self.di_timeout.load(Ordering::Relaxed) as u64)
+    pub(crate) async fn register_connection(&self, connection: &Connection) {
+        _ = self.notification_settings.lock().await.entry(connection.clone()).or_default();
     }
 
     pub(crate) async fn drop_connection(&self, connection: &Connection) {
-        {
-            self.adc_settings.lock().await.remove(connection);
-        }
-        {
-            let mut settings_map = self.bme_settings.lock().await;
-            settings_map.remove(connection);
-            Self::set_task_enabled_state(&BME_TASK_CONDITION, &settings_map).await;
-        }
-        {
-            self.di_settings.lock().await.remove(connection);
-        }
+        let mut settings_map = self.notification_settings.lock().await;
+        settings_map.remove(connection);
+        self.set_task_enabled_state(&settings_map);
+    }
+
+    pub(crate) async fn wait_for_condition(&self) -> ConditionToken {
+        self.condition.lock().await
+    }
+
+    pub(crate) async fn get_connection_settings(&self, connection: &Connection) -> Option<S> {
+        self.notification_settings.lock().await.get(connection).cloned()
     }
 }
 
-#[embassy_executor::task]
-pub(crate) async fn read_adc_notification_settings_channel() {
-    loop {
-        let (connection, settings) = ADC_SERVICE_EVENTS.recv().await;
-        NOTIFICATION_SETTINGS.process_adc_event(connection, settings).await;
-    }
-}
+impl_settings_event_consumer!(
+    AdcNotificationSettings,
+    AdcServiceEvent,
+    Voltage1,
+    Voltage2,
+    Voltage3,
+    Voltage4,
+    Voltage5,
+    Voltage6,
+    Voltage7,
+    Voltage8,
+    Samples,
+    Elapsed
+);
 
-#[embassy_executor::task]
-pub(crate) async fn read_bme_notification_settings_channel() {
-    loop {
-        let (connection, settings) = BME_SERVICE_EVENTS.recv().await;
-        NOTIFICATION_SETTINGS.process_bme_event(connection, settings).await;
-    }
-}
+impl_settings_event_consumer!(
+    AccelerometerNotificationSettings,
+    AccelerometerServiceEvent,
+    X,
+    Y,
+    Z
+);
 
-#[embassy_executor::task]
-pub(crate) async fn read_di_notification_settings_channel() {
-    loop {
-        let (connection, settings) = DI_SERVICE_EVENTS.recv().await;
-        NOTIFICATION_SETTINGS.process_di_event(connection, settings).await;
-    }
-}
+impl_settings_event_consumer!(
+    ColorNotificationSettings,
+    ColorServiceEvent,
+    Red,
+    Green,
+    Blue,
+    White
+);
+
+impl_settings_event_consumer!(
+    BmeNotificationSettings,
+    Bme280ServiceEvent,
+    Temperature,
+    Humidity,
+    Pressure
+);
+
+impl_settings_event_consumer!(
+    DiNotificationSettings,
+    DeviceInformationServiceEvent,
+    BatteryLevel,
+    Temperature,
+    Debug
+);
+
+impl_is_task_enabled!(BmeNotificationSettings, humidity, pressure, temperature);
+impl_is_task_enabled!(DiNotificationSettings, debug, battery_level, temperature);
+impl_is_task_enabled!(
+    AdcNotificationSettings,
+    voltage1,
+    voltage2,
+    voltage3,
+    voltage4,
+    voltage5,
+    voltage6,
+    voltage7,
+    voltage8,
+    elapsed,
+    samples
+);
+impl_is_task_enabled!(ColorNotificationSettings, red, green, blue, white);
+impl_is_task_enabled!(AccelerometerNotificationSettings, x, y, z);
+
+impl_timeout_event_characteristic!(AdcServiceEvent);
+impl_timeout_event_characteristic!(Bme280ServiceEvent);
+impl_timeout_event_characteristic!(DeviceInformationServiceEvent);
+impl_timeout_event_characteristic!(ColorServiceEvent);
+impl_timeout_event_characteristic!(AccelerometerServiceEvent);
+
+impl_read_event_channel!("adc", ADC_SERVICE_EVENTS, ADC_EVENT_PROCESSOR);
+impl_read_event_channel!("bme", BME_SERVICE_EVENTS, BME_EVENT_PROCESSOR);
+impl_read_event_channel!("di", DI_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR);
+impl_read_event_channel!("color", COLOR_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR);
+impl_read_event_channel!(
+    "accelerometer",
+    ACCELEROMETER_SERVICE_EVENTS,
+    ACCELEROMETER_EVENT_PROCESSOR
+);

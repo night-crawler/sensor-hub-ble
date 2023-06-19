@@ -1,5 +1,4 @@
 pub(crate) mod adc;
-pub(crate) mod ble_debugger;
 pub(crate) mod bme280;
 pub(crate) mod config;
 pub(crate) mod device_manager;
