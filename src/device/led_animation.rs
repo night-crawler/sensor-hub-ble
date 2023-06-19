@@ -195,7 +195,8 @@ impl LedStateAnimation {
 
 #[embassy_executor::task]
 pub async fn led_animation_task() {
-    while let state = CHANNEL.recv().await {
+    loop {
+        let state = CHANNEL.recv().await;
         let mut leds = LED.lock().await;
         match state {
             LedStateAnimation::Sweep(indices, on, off) => {

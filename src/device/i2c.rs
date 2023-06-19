@@ -188,7 +188,7 @@ async fn read_veml_task(
             // veml.set_integration_time(IntegrationTime::_40ms).await?;
             // does not work :(
             veml.write_config(
-                0x00 + 0x00 + 0x00, // VEML6040_IT_40MS + VEML6040_AF_AUTO + VEML6040_SD_ENABLE
+                0x00, // VEML6040_IT_40MS + VEML6040_AF_AUTO + VEML6040_SD_ENABLE
             )
             .await?;
 

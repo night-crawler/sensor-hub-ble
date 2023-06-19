@@ -9,6 +9,8 @@ use nrf_softdevice::ble::Connection;
 use crate::common::ble::SERVER;
 use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
 use crate::common::device::error::DeviceError;
+use crate::DEVICE_EVENT_PROCESSOR;
+use crate::notify_all;
 
 static CHANNEL: Channel<ThreadModeRawMutex, [u8; BLE_DEBUG_ARRAY_LEN], BLE_DEBUG_QUEUE_LEN> =
     Channel::new();
@@ -19,11 +21,7 @@ pub(crate) async fn ble_debug_notify_task() {
 
     loop {
         let message = CHANNEL.recv().await;
-        for connection in Connection::iter() {
-            if server.dis.debug_notify(&connection, &message).is_err() {
-                let _ = server.dis.debug_set(&message);
-            }
-        }
+        notify_all!(DEVICE_EVENT_PROCESSOR, server.dis, debug = &message);
     }
 }
 
@@ -63,7 +61,7 @@ impl<'a> fmt::Write for WriteTo<'a> {
     }
 }
 
-pub fn ble_debug_format<'a>(arg: fmt::Arguments) -> Result<(), DeviceError> {
+pub fn ble_debug_format(arg: fmt::Arguments) -> Result<(), DeviceError> {
     let mut buf = [0u8; 64];
     let mut w = WriteTo::new(&mut buf);
     fmt::write(&mut w, arg)?;
