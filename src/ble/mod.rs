@@ -55,16 +55,22 @@ pub(crate) static COLOR_SERVICE_EVENTS: Channel<
 pub(crate) static DEVICE_EVENT_PROCESSOR: EventProcessor<
     DiNotificationSettings,
     DeviceInformationServiceEvent,
+    2,
 > = EventProcessor::new();
-pub(crate) static BME_EVENT_PROCESSOR: EventProcessor<BmeNotificationSettings, Bme280ServiceEvent> =
-    EventProcessor::new();
-pub(crate) static ADC_EVENT_PROCESSOR: EventProcessor<AdcNotificationSettings, AdcServiceEvent> =
+pub(crate) static BME_EVENT_PROCESSOR: EventProcessor<
+    BmeNotificationSettings,
+    Bme280ServiceEvent,
+    1,
+> = EventProcessor::new();
+pub(crate) static ADC_EVENT_PROCESSOR: EventProcessor<AdcNotificationSettings, AdcServiceEvent, 1> =
     EventProcessor::new();
 pub(crate) static ACCELEROMETER_EVENT_PROCESSOR: EventProcessor<
     AccelerometerNotificationSettings,
     AccelerometerServiceEvent,
+    1,
 > = EventProcessor::new();
 pub(crate) static COLOR_EVENT_PROCESSOR: EventProcessor<
     ColorNotificationSettings,
     ColorServiceEvent,
+    1,
 > = EventProcessor::new();

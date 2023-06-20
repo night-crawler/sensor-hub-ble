@@ -32,9 +32,10 @@ use crate::common::ble::{
     COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS, SERVER,
 };
 use crate::common::device::device_manager::DeviceManager;
-use crate::common::device::i2c::read_i2c0_task;
 use crate::common::device::nrf_temp::notify_nrf_temp;
-use crate::common::device::spi::epd_task;
+use crate::common::device::task::adc::read_saadc_task;
+use crate::common::device::task::i2c::read_i2c0_task;
+use crate::common::device::task::spi::epd_task;
 use common::util::ble_debugger::ble_debug_notify_task;
 
 #[path = "../common.rs"]
@@ -65,11 +66,12 @@ async fn main(spawner: Spawner) {
     SERVER.init_ro(server);
 
     unwrap!(spawner.spawn(epd_task(
-        Arc::clone(&device_manager.spi2),
+        Arc::clone(&device_manager.spi2_pins),
         Arc::clone(&device_manager.epd_control_pins)
     )));
 
-    unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&device_manager.bbi2c0))));
+    unwrap!(spawner.spawn(read_saadc_task(Arc::clone(&device_manager.saadc_pins))));
+    unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&device_manager.bbi2c0_pins))));
     unwrap!(spawner.spawn(ble_debug_notify_task()));
     unwrap!(spawner.spawn(softdevice_task(sd)));
     unwrap!(spawner.spawn(notify_nrf_temp(sd)));

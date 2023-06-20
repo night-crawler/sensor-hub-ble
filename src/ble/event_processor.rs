@@ -43,6 +43,7 @@ pub(crate) struct ColorNotificationSettings {
 
 #[derive(Default, Clone)]
 pub(crate) struct AdcNotificationSettings {
+    pub(crate) voltage0: bool,
     pub(crate) voltage1: bool,
     pub(crate) voltage2: bool,
     pub(crate) voltage3: bool,
@@ -69,14 +70,14 @@ pub(crate) struct DiNotificationSettings {
     pub(crate) debug: bool,
 }
 
-pub(crate) struct EventProcessor<S, E> {
+pub(crate) struct EventProcessor<S, E, const T: usize> {
     notification_settings: Mutex<ThreadModeRawMutex, BTreeMap<Connection, S>>,
     timeout: AtomicU32,
-    condition: Condition,
+    condition: Condition<T>,
     _phantom_data: PhantomData<E>,
 }
 
-impl<S, E> EventProcessor<S, E>
+impl<S, E, const T: usize> EventProcessor<S, E, T>
 where
     S: Default + SettingsEventConsumer<E> + IsTaskEnabled + Clone,
     E: TimeoutEventCharacteristic,
@@ -121,7 +122,7 @@ where
         self.set_task_enabled_state(&settings_map);
     }
 
-    pub(crate) async fn wait_for_condition(&self) -> ConditionToken {
+    pub(crate) async fn wait_for_condition(&self) -> ConditionToken<T> {
         self.condition.lock().await
     }
 
@@ -133,6 +134,7 @@ where
 impl_settings_event_consumer!(
     AdcNotificationSettings,
     AdcServiceEvent,
+    Voltage0,
     Voltage1,
     Voltage2,
     Voltage3,
@@ -182,6 +184,7 @@ impl_is_task_enabled!(BmeNotificationSettings, humidity, pressure, temperature);
 impl_is_task_enabled!(DiNotificationSettings, debug, battery_level, temperature);
 impl_is_task_enabled!(
     AdcNotificationSettings,
+    voltage0,
     voltage1,
     voltage2,
     voltage3,

@@ -1,6 +1,3 @@
-use core::mem;
-
-use crate::common::bitbang;
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_nrf::config::{HfclkSource, LfclkSource};
@@ -11,7 +8,7 @@ use embassy_nrf::interrupt::typelevel::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
 use embassy_nrf::interrupt::typelevel::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
 use embassy_nrf::interrupt::typelevel::SPIM2_SPIS2_SPI2;
 use embassy_nrf::interrupt::Priority;
-use embassy_nrf::saadc::{AnyInput, ChannelConfig, Input, Resistor, Saadc};
+use embassy_nrf::saadc::{AnyInput, Input};
 use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
 use embassy_nrf::{bind_interrupts, peripherals, saadc, Peripherals};
@@ -20,6 +17,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use rclite::Arc;
 
+use crate::common::bitbang;
 use crate::common::device::error::DeviceError;
 use crate::common::device::led_animation::{led_animation_task, LedState, LedStateAnimation, LED};
 
@@ -36,6 +34,12 @@ pub(crate) struct I2CPins<T> {
     pub(crate) sda: AnyPin,
     pub(crate) scl: AnyPin,
     pub(crate) config: twim::Config,
+}
+
+pub(crate) struct SaadcPins<const N: usize> {
+    pub(crate) adc: peripherals::SAADC,
+    pub(crate) pins: [AnyInput; N],
+    pub(crate) battery: AnyInput,
 }
 
 pub(crate) struct BitbangI2CPins {
@@ -59,13 +63,12 @@ pub(crate) struct EpdControlPins {
 }
 
 pub(crate) struct DeviceManager {
-    pub(crate) spawner: Spawner,
-    pub(crate) saadc: Saadc<'static, 8>,
+    pub(crate) saadc_pins: Arc<Mutex<ThreadModeRawMutex, SaadcPins<7>>>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
-    pub(crate) spi2: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
+    pub(crate) spi2_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
     pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
-    pub(crate) bbi2c0: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
-    pub(crate) bbi2c_exp: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
+    pub(crate) bbi2c0_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
+    pub(crate) bbi2c_exp_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
 }
 
 fn prepare_nrf_peripherals() -> Peripherals {
@@ -86,6 +89,7 @@ impl DeviceManager {
         let mut led = LED.lock().await;
         led.blink_short(LedState::Purple).await;
 
+        SAADC::set_priority(Priority::P3);
         SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
         SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
         SPIM2_SPIS2_SPI2::set_priority(Priority::P3);
@@ -122,10 +126,10 @@ impl DeviceManager {
             config: Default::default(),
         };
 
-        let saadc = Self::init_adc(
-            [
+        let saadc_pins = SaadcPins {
+            adc: board.SAADC,
+            pins: [
                 board.P0_02.degrade_saadc(), // AIN0
-                board.P0_03.degrade_saadc(), // AIN1 AIN.BAT
                 board.P0_04.degrade_saadc(), // AIN2
                 board.P0_05.degrade_saadc(), // AIN3
                 board.P0_28.degrade_saadc(), // AIN4
@@ -133,10 +137,8 @@ impl DeviceManager {
                 board.P0_30.degrade_saadc(), // AIN6
                 board.P0_31.degrade_saadc(), // AIN7
             ],
-            board.SAADC,
-        );
-        saadc.calibrate().await;
-        info!("Successfully Initialized SAADC");
+            battery: board.P0_03.degrade_saadc(), // AIN1 AIN.BAT
+        };
 
         led.blink_short(LedState::Purple).await;
 
@@ -148,27 +150,11 @@ impl DeviceManager {
 
         Ok(Self {
             epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
-            spi2: Arc::new(Mutex::new(spi_tx_pins)),
-            spawner,
-            saadc,
-            bbi2c0: Arc::new(Mutex::new(bbi2c0)),
-            bbi2c_exp: Arc::new(Mutex::new(bbi2c_exp)),
+            spi2_pins: Arc::new(Mutex::new(spi_tx_pins)),
+            saadc_pins: Arc::new(Mutex::new(saadc_pins)),
+            bbi2c0_pins: Arc::new(Mutex::new(bbi2c0)),
+            bbi2c_exp_pins: Arc::new(Mutex::new(bbi2c_exp)),
         })
-    }
-
-    fn init_adc<const N: usize>(pins: [AnyInput; N], adc: peripherals::SAADC) -> Saadc<'static, N> {
-        let config = saadc::Config::default();
-
-        let mut channel_configs: [ChannelConfig; N] = unsafe { mem::zeroed() };
-        for (index, pin) in pins.into_iter().enumerate() {
-            let mut channel_cfg = ChannelConfig::single_ended(pin.degrade_saadc());
-            channel_cfg.resistor = Resistor::PULLDOWN;
-            channel_configs[index] = channel_cfg;
-        }
-
-        SAADC::set_priority(Priority::P3);
-        let saadc = Saadc::new(adc, Irqs, config, channel_configs);
-        saadc
     }
 }
 

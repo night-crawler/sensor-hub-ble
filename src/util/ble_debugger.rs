@@ -9,8 +9,8 @@ use nrf_softdevice::ble::Connection;
 use crate::common::ble::SERVER;
 use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
 use crate::common::device::error::DeviceError;
-use crate::DEVICE_EVENT_PROCESSOR;
 use crate::notify_all;
+use crate::DEVICE_EVENT_PROCESSOR;
 
 static CHANNEL: Channel<ThreadModeRawMutex, [u8; BLE_DEBUG_ARRAY_LEN], BLE_DEBUG_QUEUE_LEN> =
     Channel::new();

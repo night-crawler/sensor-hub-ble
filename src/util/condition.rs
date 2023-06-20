@@ -3,22 +3,16 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 
-pub(crate) struct Condition {
-    channel: Channel<ThreadModeRawMutex, (), 1>,
+pub(crate) struct Condition<const T: usize> {
+    channel: Channel<ThreadModeRawMutex, (), T>,
     is_enabled: AtomicBool,
 }
 
-impl Default for Condition {
-    fn default() -> Self {
-        Self { channel: Channel::new(), is_enabled: AtomicBool::new(false) }
-    }
+pub(crate) struct ConditionToken<'a, const T: usize> {
+    condition: &'a Condition<T>,
 }
 
-pub(crate) struct ConditionToken<'a> {
-    condition: &'a Condition,
-}
-
-impl<'a> Drop for ConditionToken<'a> {
+impl<'a, const T: usize> Drop for ConditionToken<'a, T> {
     fn drop(&mut self) {
         if self.condition.is_enabled.load(Ordering::SeqCst) {
             let _ = self.condition.channel.try_send(());
@@ -26,7 +20,7 @@ impl<'a> Drop for ConditionToken<'a> {
     }
 }
 
-impl Condition {
+impl<const T: usize> Condition<T> {
     pub const fn new() -> Self {
         Self { channel: Channel::new(), is_enabled: AtomicBool::new(false) }
     }
@@ -36,7 +30,9 @@ impl Condition {
     }
 
     pub fn enable(&self) {
-        if let Ok(_) = self.is_enabled.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed) {
+        if let Ok(_) =
+            self.is_enabled.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
+        {
             let _ = self.channel.try_send(());
         }
     }
@@ -45,7 +41,7 @@ impl Condition {
         self.is_enabled.store(false, Ordering::SeqCst);
     }
 
-    pub async fn lock(&self) -> ConditionToken {
+    pub async fn lock(&self) -> ConditionToken<T> {
         self.channel.recv().await;
         ConditionToken { condition: self }
     }
