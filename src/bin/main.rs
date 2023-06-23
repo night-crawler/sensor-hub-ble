@@ -33,7 +33,7 @@ use crate::common::ble::{
 };
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::nrf_temp::notify_nrf_temp;
-use crate::common::device::task::adc::read_saadc_task;
+use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saadc_task};
 use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::spi::epd_task;
 use common::util::ble_debugger::ble_debug_notify_task;
@@ -70,6 +70,7 @@ async fn main(spawner: Spawner) {
         Arc::clone(&device_manager.epd_control_pins)
     )));
 
+    unwrap!(spawner.spawn(read_saadc_battery_voltage_task(Arc::clone(&device_manager.saadc_pins))));
     unwrap!(spawner.spawn(read_saadc_task(Arc::clone(&device_manager.saadc_pins))));
     unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&device_manager.bbi2c0_pins))));
     unwrap!(spawner.spawn(ble_debug_notify_task()));

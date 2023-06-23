@@ -39,7 +39,6 @@ pub(crate) struct I2CPins<T> {
 pub(crate) struct SaadcPins<const N: usize> {
     pub(crate) adc: peripherals::SAADC,
     pub(crate) pins: [AnyInput; N],
-    pub(crate) battery: AnyInput,
 }
 
 pub(crate) struct BitbangI2CPins {
@@ -63,7 +62,7 @@ pub(crate) struct EpdControlPins {
 }
 
 pub(crate) struct DeviceManager {
-    pub(crate) saadc_pins: Arc<Mutex<ThreadModeRawMutex, SaadcPins<7>>>,
+    pub(crate) saadc_pins: Arc<Mutex<ThreadModeRawMutex, SaadcPins<8>>>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
     pub(crate) spi2_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
     pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
@@ -136,8 +135,8 @@ impl DeviceManager {
                 board.P0_29.degrade_saadc(), // AIN5
                 board.P0_30.degrade_saadc(), // AIN6
                 board.P0_31.degrade_saadc(), // AIN7
+                board.P0_03.degrade_saadc(), // AIN1 AIN.BAT
             ],
-            battery: board.P0_03.degrade_saadc(), // AIN1 AIN.BAT
         };
 
         led.blink_short(LedState::Purple).await;

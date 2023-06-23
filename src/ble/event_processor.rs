@@ -50,8 +50,6 @@ pub(crate) struct AdcNotificationSettings {
     pub(crate) voltage4: bool,
     pub(crate) voltage5: bool,
     pub(crate) voltage6: bool,
-    pub(crate) voltage7: bool,
-    pub(crate) voltage8: bool,
     pub(crate) samples: bool,
     pub(crate) elapsed: bool,
 }
@@ -66,7 +64,7 @@ pub(crate) struct BmeNotificationSettings {
 #[derive(Default, Clone)]
 pub(crate) struct DiNotificationSettings {
     pub(crate) temperature: bool,
-    pub(crate) battery_level: bool,
+    pub(crate) battery_voltage: bool,
     pub(crate) debug: bool,
 }
 
@@ -129,6 +127,11 @@ where
     pub(crate) async fn get_connection_settings(&self, connection: &Connection) -> Option<S> {
         self.notification_settings.lock().await.get(connection).cloned()
     }
+
+    pub(crate) async fn enabled_on_any_connection(&self, predicate: impl Fn(&S) -> bool) -> bool {
+        let settings_map = self.notification_settings.lock().await;
+        Connection::iter().filter_map(|connection| settings_map.get(&connection)).any(predicate)
+    }
 }
 
 impl_settings_event_consumer!(
@@ -141,8 +144,6 @@ impl_settings_event_consumer!(
     Voltage4,
     Voltage5,
     Voltage6,
-    Voltage7,
-    Voltage8,
     Samples,
     Elapsed
 );
@@ -175,13 +176,13 @@ impl_settings_event_consumer!(
 impl_settings_event_consumer!(
     DiNotificationSettings,
     DeviceInformationServiceEvent,
-    BatteryLevel,
+    BatteryVoltage,
     Temperature,
     Debug
 );
 
 impl_is_task_enabled!(BmeNotificationSettings, humidity, pressure, temperature);
-impl_is_task_enabled!(DiNotificationSettings, debug, battery_level, temperature);
+impl_is_task_enabled!(DiNotificationSettings, debug, battery_voltage, temperature);
 impl_is_task_enabled!(
     AdcNotificationSettings,
     voltage0,
@@ -191,8 +192,6 @@ impl_is_task_enabled!(
     voltage4,
     voltage5,
     voltage6,
-    voltage7,
-    voltage8,
     elapsed,
     samples
 );

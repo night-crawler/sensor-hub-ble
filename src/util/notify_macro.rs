@@ -20,7 +20,7 @@ macro_rules! notify_all {
             $characteristic:ident = $value:expr
         ),+
     ) => {
-        for connection in Connection::iter() {
+        for connection in nrf_softdevice::ble::Connection::iter() {
             // by default all notification settings are disabled
             let ns = if let Some(ns) = $event_processor.get_connection_settings(&connection).await {
                 ns

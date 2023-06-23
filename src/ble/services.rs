@@ -1,7 +1,7 @@
 #[nrf_softdevice::gatt_service(uuid = "180A")]
 pub(crate) struct DeviceInformationService {
-    #[characteristic(uuid = "2a19", read, notify)]
-    pub(crate) battery_level: i16,
+    #[characteristic(uuid = "00002b18-0000-1000-8999-00805f9b34fb", read, notify)]
+    pub(crate) battery_voltage: u16,
 
     #[characteristic(uuid = "2A6E", read, notify)]
     pub(crate) temperature: i16,
@@ -35,12 +35,6 @@ pub(crate) struct AdcService {
 
     #[characteristic(uuid = "00002b18-0006-1000-8000-00805f9b34fb", read, notify)]
     pub(crate) voltage6: u16,
-
-    #[characteristic(uuid = "00002b18-0007-1000-8000-00805f9b34fb", read, notify)]
-    pub(crate) voltage7: u16,
-
-    #[characteristic(uuid = "00002b18-0008-1000-8000-00805f9b34fb", read, notify)]
-    pub(crate) voltage8: u16,
 
     #[characteristic(uuid = "A0E4D2BA-0000-8000-0000-00805f9b34fb", read, notify)]
     pub(crate) samples: u16,

@@ -33,7 +33,9 @@ impl<const T: usize> Condition<T> {
         if let Ok(_) =
             self.is_enabled.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
         {
-            let _ = self.channel.try_send(());
+            for _ in 0..T {
+                let _ = self.channel.try_send(());
+            }
         }
     }
 
