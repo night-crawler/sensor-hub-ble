@@ -7,7 +7,7 @@ use accelerometer::{Error, ErrorKind};
 use embedded_hal_async::i2c::ErrorType;
 use num_traits::FromPrimitive;
 
-use crate::common::device::lis2h12::reg::*;
+use crate::common::device::lis2dh12::reg::*;
 
 pub(crate) mod reg;
 

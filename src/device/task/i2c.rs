@@ -18,8 +18,8 @@ use crate::common::ble::{
 };
 use crate::common::device::bme280::{Bme280Error, BME280_SLEEP_MODE};
 use crate::common::device::device_manager::BitbangI2CPins;
-use crate::common::device::lis2h12::reg::{FifoMode, FullScale, Odr};
-use crate::common::device::lis2h12::{Lis2dh12, SlaveAddr};
+use crate::common::device::lis2dh12::reg::{FifoMode, FullScale, Odr};
+use crate::common::device::lis2dh12::{Lis2dh12, SlaveAddr};
 use crate::common::device::veml6040::Veml6040;
 use crate::common::device::{bme280, veml6040};
 use crate::notify_all;
@@ -139,7 +139,7 @@ async fn read_accel_task(
             lis.set_odr(Odr::Hz50).await?;
             lis.set_bdu(true).await?;
             lis.set_fs(FullScale::G2).await?;
-            lis.set_mode(crate::common::device::lis2h12::reg::Mode::Normal).await?;
+            lis.set_mode(crate::common::device::lis2dh12::reg::Mode::Normal).await?;
             lis.enable_axis((true, true, true)).await?;
             lis.enable_temp(true).await?;
             lis.enable_fifo(true).await?;

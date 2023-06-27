@@ -61,7 +61,7 @@ pub(crate) struct Bme280Service {
     pub(crate) timeout: u32,
 }
 
-#[nrf_softdevice::gatt_service(uuid = "5c853275-723b-4754-a329-969d4bc8121e")]
+#[nrf_softdevice::gatt_service(uuid = "5c853275-823b-4754-a329-969d4bc8121e")]
 pub(crate) struct AccelerometerService {
     #[characteristic(uuid = "eaeaeaea-0000-0000-0000-00805f9b34fb", read, notify)]
     pub(crate) x: f32,
@@ -76,18 +76,18 @@ pub(crate) struct AccelerometerService {
     pub(crate) timeout: u32,
 }
 
-#[nrf_softdevice::gatt_service(uuid = "5c853275-723b-4754-a329-969d4bc8121e")]
+#[nrf_softdevice::gatt_service(uuid = "5c853275-923b-4754-a329-969d4bc8121e")]
 pub(crate) struct ColorService {
-    #[characteristic(uuid = "ebbbbaea-0000-0000-0000-00805f9b34fb", read, notify)]
+    #[characteristic(uuid = "ebbbbaea-a000-0000-0000-00805f9b34fb", read, notify)]
     pub(crate) red: u16,
 
-    #[characteristic(uuid = "eaeaeaea-0000-1000-0000-00805f9b34fb", read, notify)]
+    #[characteristic(uuid = "eaeaeaea-b000-1000-0000-00805f9b34fb", read, notify)]
     pub(crate) green: u16,
 
-    #[characteristic(uuid = "eaeaeaea-0000-2000-0000-00805f9b34fb", read, notify)]
+    #[characteristic(uuid = "eaeaeaea-c000-2000-0000-00805f9b34fb", read, notify)]
     pub(crate) blue: u16,
 
-    #[characteristic(uuid = "eaeaeaea-0000-3000-0000-00805f9b34fb", read, notify)]
+    #[characteristic(uuid = "eaeaeaea-d000-3000-0000-00805f9b34fb", read, notify)]
     pub(crate) white: u16,
 
     #[characteristic(uuid = "a0e4a2ba-0000-8000-0000-00805f9b34fb", read, write, notify)]

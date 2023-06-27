@@ -31,7 +31,7 @@ pub(crate) async fn read_saadc_battery_voltage_task(
             // ignores sample_counter from the current run
             let (measurements, _, _) = {
                 let saadc_pins = saadc_pins.lock().await;
-                let sample_counter = 500;
+                let sample_counter = 600;
                 measure::<8, 10>(&saadc_pins.pins, &saadc_pins.adc, 1000, sample_counter)
                     .await
                     .unwrap()
@@ -85,7 +85,7 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
             // the measured time will be 10 times bigger. It might be the case, that the buffer here
             // means just one buffer for 7 channels, so I just set it to 400.
             // (now changed to 8)
-            let mut sample_counter = 500;
+            let mut sample_counter = 600;
             loop {
                 match measure::<8, 10>(&saadc_pins.pins, &saadc_pins.adc, 1000, sample_counter)
                     .await
