@@ -1,16 +1,13 @@
-use core::ops::DerefMut;
-
 use defmt::info;
-use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use futures::{select_biased, FutureExt};
-use nrf_softdevice::ble::Connection;
 use rclite::Arc;
 
 use crate::ble_debug;
 use crate::common::bitbang;
+use crate::common::bitbang::shared_i2c::SharedBitbangI2cPins;
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::BleServer;
 use crate::common::ble::{
@@ -64,15 +61,7 @@ async fn read_bme_task(
         let _token = BME_EVENT_PROCESSOR.wait_for_condition().await;
 
         let measurements = {
-            let mut i2c_pins = i2c_pins.lock().await;
-            let i2c_pins = i2c_pins.deref_mut();
-            let mut sda = Flex::new(&mut i2c_pins.sda);
-            sda.set_as_input_output(Pull::None, OutputDrive::Standard0Disconnect1);
-            let mut i2c = bitbang::i2c::BitbangI2C::new(
-                Output::new(&mut i2c_pins.scl, Level::High, OutputDrive::Standard0Disconnect1),
-                sda,
-                Default::default(),
-            );
+            let mut i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
 
             let mut bme = bme280::Bme280::new_primary(&mut i2c);
             let bme_config = bme280::Configuration::default()
@@ -123,16 +112,7 @@ async fn read_accel_task(
     loop {
         let _token = ACCELEROMETER_EVENT_PROCESSOR.wait_for_condition().await;
         let measurements = {
-            let mut i2c_pins = i2c_pins.lock().await;
-
-            let i2c_pins = i2c_pins.deref_mut();
-            let mut sda = Flex::new(&mut i2c_pins.sda);
-            sda.set_as_input_output(Pull::None, OutputDrive::Standard0Disconnect1);
-            let i2c = bitbang::i2c::BitbangI2C::new(
-                Output::new(&mut i2c_pins.scl, Level::High, OutputDrive::Standard0Disconnect1),
-                sda,
-                Default::default(),
-            );
+            let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
 
             let mut lis = Lis2dh12::new(i2c, SlaveAddr::Default).await?;
             lis.reset().await?;
@@ -170,16 +150,7 @@ async fn read_veml_task(
         let _token = COLOR_EVENT_PROCESSOR.wait_for_condition().await;
 
         let measurements = {
-            let mut i2c_pins = i2c_pins.lock().await;
-
-            let i2c_pins = i2c_pins.deref_mut();
-            let mut sda = Flex::new(&mut i2c_pins.sda);
-            sda.set_as_input_output(Pull::None, OutputDrive::Standard0Disconnect1);
-            let i2c = bitbang::i2c::BitbangI2C::new(
-                Output::new(&mut i2c_pins.scl, Level::High, OutputDrive::Standard0Disconnect1),
-                sda,
-                Default::default(),
-            );
+            let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
 
             let mut veml = Veml6040::new(i2c);
 
