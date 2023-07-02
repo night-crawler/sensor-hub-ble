@@ -39,6 +39,8 @@ pub(crate) struct ColorNotificationSettings {
     pub(crate) green: bool,
     pub(crate) blue: bool,
     pub(crate) white: bool,
+    pub(crate) cct: bool,
+    pub(crate) lux: bool,
 }
 
 #[derive(Default, Clone)]
@@ -162,7 +164,9 @@ impl_settings_event_consumer!(
     Red,
     Green,
     Blue,
-    White
+    White,
+    Lux,
+    Cct
 );
 
 impl_settings_event_consumer!(

@@ -38,6 +38,7 @@ pub trait ConvExt {
     fn as_temp(&self) -> i16;
     fn as_pressure(&self) -> u32;
     fn as_humidity(&self) -> u16;
+    fn as_luminous_flux(&self) -> u16;
 }
 
 impl ConvExt for f32 {
@@ -58,5 +59,10 @@ impl ConvExt for f32 {
     fn as_humidity(&self) -> u16 {
         // M = 1, d = -2, b = 0
         self.ble_serialize(1, -2, 0) as u16
+    }
+
+    fn as_luminous_flux(&self) -> u16 {
+        //  M = 1, d = 0, b = 0
+        self.ble_serialize(1, 0, 0) as u16
     }
 }

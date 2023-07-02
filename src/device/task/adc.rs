@@ -157,7 +157,6 @@ async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
         sample_counter,
         &mut bufs,
         |bufs| {
-            // compiler_fence(Ordering::SeqCst);
             let current_time = embassy_time::Instant::now();
             spent = current_time - last_sample_time.unwrap_or(start_time);
             // if spent.as_micros() > measure_time_us {
@@ -167,19 +166,9 @@ async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
             let _ = last_sample_time.insert(current_time);
 
             for buf in bufs {
-                // if buf.len() == 1 {
-                //     info!("buf: {}", buf);
-                // }
-                if count == 0 {
-                    accum.iter_mut().zip(buf).for_each(|(prev, next)| {
-                        *prev = *next as f32;
-                    });
-                } else {
-                    accum.iter_mut().zip(buf).for_each(|(prev, next)| {
-                        *prev += (*next as f32 - *prev) * 0.01;
-                    });
-                }
-
+                accum.iter_mut().zip(buf).for_each(|(avg, &curr)| {
+                    *avg += (curr as f32 - *avg) / (count + 1) as f32;
+                });
                 count += 1;
             }
 

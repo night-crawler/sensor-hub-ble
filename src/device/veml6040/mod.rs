@@ -1,5 +1,9 @@
+use core::mem;
+use embassy_time::{Duration, Timer};
+
 use embedded_hal_async::i2c;
 use embedded_hal_async::i2c::ErrorType;
+use num_traits::float::FloatCore;
 
 /// All possible errors in this crate
 #[derive(Debug)]
@@ -40,6 +44,30 @@ pub enum IntegrationTime {
     _1280ms,
 }
 
+impl IntegrationTime {
+    pub fn sensitivity(&self) -> f32 {
+        match self {
+            IntegrationTime::_40ms => 0.25168,
+            IntegrationTime::_80ms => 0.12584,
+            IntegrationTime::_160ms => 0.06292,
+            IntegrationTime::_320ms => 0.03146,
+            IntegrationTime::_640ms => 0.01573,
+            IntegrationTime::_1280ms => 0.007865,
+        }
+    }
+
+    pub fn get_duration_ms(&self) -> u64 {
+        match self {
+            IntegrationTime::_40ms => 40,
+            IntegrationTime::_80ms => 80,
+            IntegrationTime::_160ms => 160,
+            IntegrationTime::_320ms => 320,
+            IntegrationTime::_640ms => 640,
+            IntegrationTime::_1280ms => 1280,
+        }
+    }
+}
+
 /// Result of measurement of all channels
 #[derive(Debug, Clone, Copy, PartialEq, defmt::Format)]
 pub struct AllChannelMeasurement {
@@ -51,6 +79,43 @@ pub struct AllChannelMeasurement {
     pub blue: u16,
     /// White channel measurement.
     pub white: u16,
+}
+
+impl AllChannelMeasurement {
+    pub fn compute_cct(&self) -> Option<f32> {
+        // https://www.vishay.com/docs/84331/designingveml6040.pdf
+        let (r, g, b) = (self.red as f32, self.green as f32, self.blue as f32);
+
+        let corrected_color_x = (-0.023249 * r) + (0.291014 * g) + (-0.364880 * b);
+        let corrected_color_y = (-0.042799 * r) + (0.272148 * g) + (-0.279591 * b);
+        let corrected_color_z = (-0.155901 * r) + (0.251534 * g) + (-0.076240 * b);
+        let color_total = corrected_color_x + corrected_color_y + corrected_color_z;
+
+        if color_total < 0.001 {
+            return None;
+        }
+
+        // Once the XYZ have been found, these can be used to derive the (x, y) coordinates,
+        // which then denote a specific color, as depicted on the axes CIE color gamut on page 7.
+        // For this the following equations can be used:
+        let color_x = corrected_color_x / color_total;
+        let color_y = corrected_color_y / color_total;
+
+        // Use McCAMY formula
+        // CCT = 449.0 × n3 + 3525.0 × n2 + 6823.3 × n + 5520.33
+        // where n = (x - Xe) / (Ye - y)
+        // Xe = 0.3320
+        // Ye = 0.1858
+        let color_n = (color_x - 0.3320) / (0.1858 - color_y);
+        let cct = 449.0 * color_n.powi(3) + 3525.0 * color_n.powi(2) + 6823.3 * color_n + 5520.33;
+
+        Some(cct)
+    }
+
+    pub fn ambient_light(&self, it: IntegrationTime) -> f32 {
+        let g = self.green as f32;
+        g * it.sensitivity()
+    }
 }
 
 const DEVICE_ADDRESS: u8 = 0x10;
@@ -77,14 +142,14 @@ impl BitFlags {
 #[derive(Debug, Default)]
 pub struct Veml6040<I2C> {
     /// The concrete I²C device implementation.
-    i2c: I2C,
+    pub(crate) i2c: I2C,
     /// Configuration register status.
     config: u8,
 }
 
 impl<I2C, E> Veml6040<I2C>
-where
-    I2C: i2c::I2c + ErrorType<Error = E>,
+    where
+        I2C: i2c::I2c + ErrorType<Error=E>,
 {
     /// Create new instance of the VEML6040 device.
     pub fn new(i2c: I2C) -> Self {
@@ -98,8 +163,8 @@ where
 }
 
 impl<I2C, E> Veml6040<I2C>
-where
-    I2C: i2c::I2c + ErrorType<Error = E>,
+    where
+        I2C: i2c::I2c + ErrorType<Error=E>,
 {
     /// Enable the sensor.
     pub async fn enable(&mut self) -> Result<(), Error<E>> {
@@ -155,9 +220,46 @@ where
 }
 
 impl<I2C, E> Veml6040<I2C>
-where
-    I2C: i2c::I2c + ErrorType<Error = E>,
+    where
+        I2C: i2c::I2c + ErrorType<Error=E>,
 {
+    pub async fn read_all_channels_with_oversampling(&mut self, it: IntegrationTime, oversample: usize) -> Result<AllChannelMeasurement, Error<E>> {
+        self.set_integration_time(it).await?;
+        let (mut r, mut g, mut b, mut w) = (0f32, 0f32, 0f32, 0f32);
+
+        for index in 1..oversample + 1 {
+            let index = index as f32;
+            Timer::after(Duration::from_millis(it.get_duration_ms() + 2)).await;
+            let measurement = self.read_all_channels_one_by_one().await?;
+
+            r += (measurement.red as f32 - r) / index;
+            g += (measurement.green as f32 - g) / index;
+            b += (measurement.blue as f32 - b) / index;
+            w += (measurement.white as f32 - w) / index;
+        }
+
+        Ok(AllChannelMeasurement {
+            red: r as u16,
+            green: g as u16,
+            blue: b as u16,
+            white: w as u16,
+        })
+    }
+
+    pub async fn read_all_channels_one_by_one(&mut self) -> Result<AllChannelMeasurement, Error<E>> {
+        let red = self.read_red_channel().await?;
+        let green = self.read_green_channel().await?;
+        let blue = self.read_blue_channel().await?;
+        let white = self.read_white_channel().await?;
+
+        Ok(AllChannelMeasurement {
+            red,
+            green,
+            blue,
+            white,
+        })
+    }
+
     /// Read the red channel measurement data.
     pub async fn read_red_channel(&mut self) -> Result<u16, Error<E>> {
         self.read_channel(Register::R_DATA).await
@@ -165,7 +267,7 @@ where
 
     /// Read the green channel measurement data.
     pub async fn read_green_channel(&mut self) -> Result<u16, Error<E>> {
-        self.read_channel(u8::MAX).await
+        self.read_channel(Register::G_DATA).await
     }
 
     /// Read the blue channel measurement data.
@@ -185,12 +287,17 @@ where
             .write_read(DEVICE_ADDRESS, &[Register::R_DATA], &mut data)
             .await
             .map_err(Error::I2C)?;
-        Ok(AllChannelMeasurement {
+
+        Ok(Self::convert_buffer(&data))
+    }
+
+    fn convert_buffer(data: &[u8]) -> AllChannelMeasurement {
+        AllChannelMeasurement {
             red: u16::from(data[1]) << 8 | u16::from(data[0]),
             green: u16::from(data[3]) << 8 | u16::from(data[2]),
             blue: u16::from(data[5]) << 8 | u16::from(data[4]),
             white: u16::from(data[7]) << 8 | u16::from(data[6]),
-        })
+        }
     }
 
     pub async fn read_channel(&mut self, first_register: u8) -> Result<u16, Error<E>> {

@@ -11,7 +11,7 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self { delay_duration: Duration::from_hz(20000) }
+        Self { delay_duration: Duration::from_hz(10_000) }
     }
 }
 

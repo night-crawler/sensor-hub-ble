@@ -90,6 +90,33 @@ pub(crate) struct ColorService {
     #[characteristic(uuid = "eaeaeaea-d000-3000-0000-00805f9b34fb", read, notify)]
     pub(crate) white: u16,
 
+    /// uuid: 0x2AE9
+    /// name: Correlated Color Temperature
+    /// id: org.bluetooth.characteristic.correlated_color_temperature
+    /// Unit is Kelvin with a resolution of 1.
+    /// Minimum: 800
+    /// Maximum: 65534
+    /// Unit:
+    /// org.bluetooth.unit.thermodynamic_temperature.kelvin
+    /// A value of 0xFFFF represents ’value is not known’.
+    /// uint16
+    #[characteristic(uuid = "2AE9", read, notify)]
+    pub(crate) cct: u16,
+
+    /// uuid: 0x2AFF
+    /// name: Luminous Flux
+    /// id: org.bluetooth.characteristic.luminous_flux
+    /// Unit is lumen with a resolution of 1
+    /// Minimum: 0
+    /// Maximum: 65534
+    /// Represented values: M = 1, d = 0, b = 0
+    /// Unit: org.bluetooth.unit.luminous_flux.lumen
+    /// A value of 0xFFFF represents ’value is not known’.
+    /// All other values are Prohibited.
+    /// uint16
+    #[characteristic(uuid = "2AFF", read, notify)]
+    pub(crate) lux: u16,
+
     #[characteristic(uuid = "a0e4a2ba-0000-8000-0000-00805f9b34fb", read, write, notify)]
     pub(crate) timeout: u32,
 }

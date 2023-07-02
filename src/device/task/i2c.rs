@@ -2,23 +2,22 @@ use defmt::info;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use futures::{select_biased, FutureExt};
+use futures::{FutureExt, select_biased};
 use rclite::Arc;
 
 use crate::ble_debug;
 use crate::common::bitbang;
 use crate::common::bitbang::shared_i2c::SharedBitbangI2cPins;
-use crate::common::ble::conv::ConvExt;
-use crate::common::ble::services::BleServer;
 use crate::common::ble::{
     ACCELEROMETER_EVENT_PROCESSOR, BME_EVENT_PROCESSOR, COLOR_EVENT_PROCESSOR, SERVER,
 };
-use crate::common::device::bme280::{Bme280Error, BME280_SLEEP_MODE};
-use crate::common::device::device_manager::BitbangI2CPins;
-use crate::common::device::lis2dh12::reg::{FifoMode, FullScale, Odr};
-use crate::common::device::lis2dh12::{Lis2dh12, SlaveAddr};
-use crate::common::device::veml6040::Veml6040;
+use crate::common::ble::conv::ConvExt;
+use crate::common::ble::services::BleServer;
 use crate::common::device::{bme280, veml6040};
+use crate::common::device::bme280::{BME280_SLEEP_MODE, Bme280Error};
+use crate::common::device::device_manager::BitbangI2CPins;
+use crate::common::device::lis2dh12::{Lis2dh12, SlaveAddr};
+use crate::common::device::lis2dh12::reg::{FifoMode, FullScale, Odr};
 use crate::notify_all;
 
 #[embassy_executor::task]
@@ -58,6 +57,7 @@ async fn read_bme_task(
     server: &BleServer,
 ) -> Result<(), Bme280Error> {
     loop {
+        // Timer::after(Duration::from_secs(100000)).await;
         let _token = BME_EVENT_PROCESSOR.wait_for_condition().await;
 
         let measurements = {
@@ -110,6 +110,7 @@ async fn read_accel_task(
     server: &BleServer,
 ) -> Result<(), accelerometer::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
+        // Timer::after(Duration::from_secs(100000)).await;
         let _token = ACCELEROMETER_EVENT_PROCESSOR.wait_for_condition().await;
         let measurements = {
             let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
@@ -125,7 +126,11 @@ async fn read_accel_task(
             lis.enable_fifo(true).await?;
             lis.set_fm(FifoMode::Bypass).await?;
 
-            lis.accel_norm().await?
+            let measurements = lis.accel_norm().await?;
+            lis.set_mode(crate::common::device::lis2dh12::reg::Mode::LowPower).await?;
+            lis.set_odr(Odr::PowerDown).await?;
+
+            measurements
         };
 
         info!("LIS: x={}, y={}, z={}", measurements.x, measurements.y, measurements.z);
@@ -151,23 +156,15 @@ async fn read_veml_task(
 
         let measurements = {
             let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
-
-            let mut veml = Veml6040::new(i2c);
-
-            // veml.enable().await?;
-            // veml.set_measurement_mode(MeasurementMode::Auto).await?;
-            // veml.set_integration_time(IntegrationTime::_40ms).await?;
-            // does not work :(
-            veml.write_config(
-                0x00, // VEML6040_IT_40MS + VEML6040_AF_AUTO + VEML6040_SD_ENABLE
-            )
-            .await?;
-
-            Timer::after(Duration::from_millis(40)).await;
-
-            veml.read_all_channels().await?
+            let mut veml = veml6040::Veml6040::new(i2c);
+            veml.set_measurement_mode(veml6040::MeasurementMode::Auto).await?;
+            veml.read_all_channels_with_oversampling(veml6040::IntegrationTime::_40ms, 50).await?
         };
-        info!("Color: {}", measurements);
+
+        let ambient = measurements.ambient_light(veml6040::IntegrationTime::_40ms);
+        let cct = measurements.compute_cct().unwrap_or(0.0f32) as u16;
+
+        info!("Color: {}; ambient light: {}, cct: {}", measurements, ambient, cct);
 
         notify_all!(
             COLOR_EVENT_PROCESSOR,
@@ -175,7 +172,9 @@ async fn read_veml_task(
             red = &measurements.red,
             green = &measurements.green,
             blue = &measurements.blue,
-            white = &measurements.white
+            white = &measurements.white,
+            cct = &cct,
+            lux = &ambient.as_luminous_flux()
         );
 
         Timer::after(COLOR_EVENT_PROCESSOR.get_timeout_duration()).await;

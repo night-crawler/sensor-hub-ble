@@ -1,52 +1,16 @@
-// use core::marker::PhantomData;
-//
-// use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
-// use embassy_sync::mutex::Mutex;
-// use embedded_hal_async::i2c::{ErrorType, I2c, Operation, SevenBitAddress};
-//
-// pub(crate) struct SharedI2c<'a, I, E> {
-//     bus: &'a Mutex<ThreadModeRawMutex, I>,
-//     _phantom_data: PhantomData<E>,
-// }
-//
-// impl<'a, I, E> SharedI2c<'a, I, E> {
-//     pub(crate) fn new(bus: &'a Mutex<ThreadModeRawMutex, I>) -> Self {
-//         Self { bus, _phantom_data: PhantomData }
-//     }
-// }
-//
-// impl<'a, I, E> ErrorType for SharedI2c<'a, I, E> where I: ErrorType<Error=E> + I2c, E: embedded_hal_async::i2c::Error {
-//     type Error = E;
-// }
-//
-// impl<'a, I, E> I2c for SharedI2c<'a, I, E> where I: I2c + ErrorType<Error=E>, E: embedded_hal_async::i2c::Error {
-//     async fn read(&mut self, address: SevenBitAddress, read: &mut [u8]) -> Result<(), <SharedI2c<'a, I, E> as ErrorType>::Error> {
-//         todo!()
-//     }
-//
-//     async fn write(&mut self, address: SevenBitAddress, write: &[u8]) -> Result<(), <SharedI2c<'a, I, E> as ErrorType>::Error> {
-//         todo!()
-//     }
-//
-//     async fn write_read(&mut self, address: SevenBitAddress, write: &[u8], read: &mut [u8]) -> Result<(), <SharedI2c<'a, I, E> as ErrorType>::Error> {
-//         todo!()
-//     }
-//
-//     async fn transaction(&mut self, address: SevenBitAddress, operations: &mut [Operation<'_>]) -> Result<(), <SharedI2c<'a, I, E> as ErrorType>::Error> {
-//         todo!()
-//     }
-// }
-
 use core::future::Future;
 use core::ops::DerefMut;
 
 use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
+use embassy_nrf::peripherals::TWISPI0;
+use embassy_nrf::twim;
+use embassy_nrf::twim::{Error, Frequency, Twim};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embedded_hal_async::i2c::{ErrorType, I2c, Operation, SevenBitAddress};
 
 use crate::common::bitbang::i2c::{BitbangI2C, BitbangI2CError};
-use crate::common::device::device_manager::BitbangI2CPins;
+use crate::common::device::device_manager::{BitbangI2CPins, Irqs};
 
 pub(crate) struct SharedBitbangI2cPins<'a> {
     pins: &'a Mutex<ThreadModeRawMutex, BitbangI2CPins>,
@@ -73,18 +37,29 @@ impl<'a> SharedBitbangI2cPins<'a> {
         let mut i2c_pins = self.pins.lock().await;
         let i2c_pins_mut_ref = i2c_pins.deref_mut();
 
-        let mut sda = Flex::new(&mut i2c_pins_mut_ref.sda);
-        sda.set_as_input_output(Pull::None, OutputDrive::Standard0Disconnect1);
-        let mut i2c = BitbangI2C::new(
-            Output::new(&mut i2c_pins_mut_ref.scl, Level::High, OutputDrive::Standard0Disconnect1),
-            sda,
-            Default::default(),
-        );
+        // let mut sda = Flex::new(&mut i2c_pins_mut_ref.sda);
+        // sda.set_as_input_output(Pull::None, OutputDrive::Standard0Disconnect1);
+        // let mut i2c = BitbangI2C::new(
+        //     Output::new(&mut i2c_pins_mut_ref.scl, Level::High, OutputDrive::Standard0Disconnect1),
+        //     sda,
+        //     Default::default(),
+        // );
 
-        match op {
+        let mut config = twim::Config::default();
+        config.scl_pullup = false;
+        config.sda_pullup = false;
+        config.frequency = Frequency::K400;
+        let mut i2c = Twim::new(unsafe { TWISPI0::steal() }, Irqs, &mut i2c_pins_mut_ref.sda, &mut i2c_pins_mut_ref.scl, config);
+
+        let result = match op {
             Op::Write(address, write) => i2c.write(address, write).await,
             Op::Read(address, read) => i2c.read(address, read).await,
             Op::WriteRead(address, write, read) => i2c.write_read(address, write, read).await,
+        };
+
+        match result {
+            Ok(q) => Ok(q),
+            Err(_) => Err(BitbangI2CError::NoAck)
         }
     }
 }
@@ -121,8 +96,8 @@ impl<'a> I2c for SharedBitbangI2cPins<'a> {
 
     async fn transaction(
         &mut self,
-        address: SevenBitAddress,
-        operations: &mut [Operation<'_>],
+        _address: SevenBitAddress,
+        _operations: &mut [Operation<'_>],
     ) -> Result<(), <SharedBitbangI2cPins<'a> as ErrorType>::Error> {
         todo!()
     }
