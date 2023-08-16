@@ -30,19 +30,16 @@ pub(crate) async fn read_i2c0_task(i2c_pins: Arc<Mutex<ThreadModeRawMutex, Bitba
         select_biased! {
              result = bme_fut.fuse() => {
                 if let Err(err) = result {
-                    info!("BME Error");
                     ble_debug!("BME error: {}", err);
                 }
             },
             result = accel_fut.fuse() => {
                 if let Err(err) = result {
-                    info!("Accel Error");
                     ble_debug!("Accel error: {:?}", err);
                 }
             },
             result = color_fut.fuse() => {
                 if let Err(err) = result {
-                    info!("Color Error");
                     ble_debug!("Color error: {:?}", err);
                 }
             },

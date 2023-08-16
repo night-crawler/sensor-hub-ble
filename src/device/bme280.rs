@@ -554,10 +554,10 @@ pub enum Bme280Error {
     #[error("Failed to compensate a raw measurement")]
     CompensationFailed,
 
-    #[error("I²C error")]
+    #[error("I²C error {0}")]
     BitbangBus(#[from] bitbang::i2c::BitbangI2CError),
 
-    #[error("I²C error")]
+    #[error("I²C error {0}")]
     NativeBus(#[from] CustomI2CError),
 
     #[error("Failed to parse sensor data")]

@@ -1,5 +1,6 @@
 use core::future::Future;
 use core::ops::DerefMut;
+use defmt::info;
 
 use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
 use embassy_nrf::peripherals::TWISPI0;
@@ -59,7 +60,10 @@ impl<'a> SharedBitbangI2cPins<'a> {
 
         match result {
             Ok(q) => Ok(q),
-            Err(_) => Err(BitbangI2CError::NoAck)
+            Err(er) => {
+                info!("I2C Error: {}", er);
+                Err(BitbangI2CError::NoAck)
+            }
         }
     }
 }

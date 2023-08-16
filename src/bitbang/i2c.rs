@@ -1,3 +1,4 @@
+use core::fmt::Formatter;
 use embassy_nrf::gpio::{AnyPin, Flex, Output, Pin as GpioPin};
 use embassy_time::{Duration, Timer};
 use embedded_hal_async::i2c::{
@@ -19,6 +20,12 @@ impl Default for Config {
 pub enum BitbangI2CError {
     NoAck,
     InvalidData,
+}
+
+impl core::fmt::Display for BitbangI2CError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub struct BitbangI2C<'d, SCL = AnyPin, SDA = AnyPin>

@@ -1,10 +1,10 @@
 use core::cmp::min;
 use core::fmt;
 use core::str::from_utf8_unchecked;
+use defmt::info;
 
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
-use nrf_softdevice::ble::Connection;
 
 use crate::common::ble::SERVER;
 use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
@@ -65,6 +65,7 @@ pub fn ble_debug_format(arg: fmt::Arguments) -> Result<(), DeviceError> {
     let mut buf = [0u8; 64];
     let mut w = WriteTo::new(&mut buf);
     fmt::write(&mut w, arg)?;
+    info!("ble_debug: {}", w.to_str().unwrap_or("invalid utf8"));
     CHANNEL.try_send(buf)?;
     Ok(())
 }
