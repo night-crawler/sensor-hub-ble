@@ -37,6 +37,7 @@ use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saa
 use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::spi::epd_task;
 use common::util::ble_debugger::ble_debug_notify_task;
+use crate::common::device::ui::UI_STORE;
 
 #[path = "../common.rs"]
 mod common;
@@ -93,6 +94,7 @@ async fn main(spawner: Spawner) {
         info!("Waiting for connection");
         let conn = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
         unwrap!(spawner.spawn(handle_connection(conn)));
+        UI_STORE.lock().await.num_connections = Connection::iter().count() as u8
     }
 }
 

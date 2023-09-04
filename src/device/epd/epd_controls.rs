@@ -1,4 +1,3 @@
-use defmt::info;
 use embassy_nrf::gpio::{AnyPin, Input, Output};
 use embassy_time::{Duration, Timer};
 use embedded_hal_async::spi::{SpiBusRead, SpiBusWrite};
@@ -91,7 +90,5 @@ where
         Timer::after(Duration::from_millis(2)).await;
         self.rst.set_high();
         Timer::after(Duration::from_millis(20)).await;
-
-        info!("Reset complete");
     }
 }

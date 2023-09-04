@@ -463,6 +463,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-layout"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d3dc955af9d9011835bbb92ef7de625e493338e3535a51f754bf1ee846282bb"
+dependencies = [
+ "embedded-graphics",
+ "embedded-layout-macros",
+]
+
+[[package]]
+name = "embedded-layout-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e8e14b0fd4603445537cee01d543cff7ad00bad251d9df29dc46497e3ebbee4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
+
+[[package]]
 name = "embedded-storage"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1057,6 +1078,7 @@ dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",
  "embedded-hal-async",
+ "embedded-layout",
  "fixed",
  "futures",
  "heapless",
@@ -1071,6 +1093,7 @@ dependencies = [
  "smallvec",
  "static_cell",
  "thiserror-no-std",
+ "u8g2-fonts",
 ]
 
 [[package]]
@@ -1182,6 +1205,16 @@ name = "typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
+
+[[package]]
+name = "u8g2-fonts"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c53bd76579dcab4b69ffe77c895b8dffa4a9b3273c0a5105afc4d3768a5064ed"
+dependencies = [
+ "embedded-graphics",
+ "embedded-graphics-core",
+]
 
 [[package]]
 name = "unicode-ident"

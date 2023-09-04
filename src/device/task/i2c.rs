@@ -18,6 +18,7 @@ use crate::common::device::bme280::{BME280_SLEEP_MODE, Bme280Error};
 use crate::common::device::device_manager::BitbangI2CPins;
 use crate::common::device::lis2dh12::{Lis2dh12, SlaveAddr};
 use crate::common::device::lis2dh12::reg::{FifoMode, FullScale, Odr};
+use crate::common::device::ui::UI_STORE;
 use crate::notify_all;
 
 #[embassy_executor::task]
@@ -75,11 +76,18 @@ async fn read_bme_task(
             Timer::after(Duration::from_millis(100)).await;
 
             let measurements = bme.measure().await?;
-
             bme.set_mode(BME280_SLEEP_MODE).await?;
 
             measurements
         };
+
+        {
+            let mut store = UI_STORE.lock().await;
+            store.temperature = measurements.temperature;
+            store.humidity = measurements.humidity;
+            store.pressure = measurements.pressure;
+        }
+
 
         info!(
             "BME: t={}, h={}, p={}",
@@ -130,6 +138,13 @@ async fn read_accel_task(
             measurements
         };
 
+        {
+            let mut store = UI_STORE.lock().await;
+            store.x = measurements.x;
+            store.y = measurements.y;
+            store.z = measurements.z;
+        }
+
         info!("LIS: x={}, y={}, z={}", measurements.x, measurements.y, measurements.z);
 
         notify_all!(
@@ -160,6 +175,16 @@ async fn read_veml_task(
 
         let ambient = measurements.ambient_light(veml6040::IntegrationTime::_40ms);
         let cct = measurements.compute_cct().unwrap_or(0.0f32) as u16;
+
+        {
+            let mut store = UI_STORE.lock().await;
+            store.cct = cct;
+            store.lux = ambient;
+            store.r = measurements.red;
+            store.g = measurements.green;
+            store.b = measurements.blue;
+            store.w = measurements.white;
+        }
 
         info!("Color: {}; ambient light: {}, cct: {}", measurements, ambient, cct);
 

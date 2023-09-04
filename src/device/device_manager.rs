@@ -14,12 +14,10 @@ use embassy_nrf::twim::{self};
 use embassy_nrf::{bind_interrupts, peripherals, saadc, Peripherals};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::{Duration, Timer};
 use rclite::Arc;
 
 use crate::common::bitbang;
 use crate::common::device::error::DeviceError;
-use crate::common::device::led_animation::{led_animation_task, LedState, LedStateAnimation, LED};
 
 bind_interrupts!(pub(crate) struct Irqs {
     SAADC => saadc::InterruptHandler;
@@ -39,6 +37,8 @@ pub(crate) struct I2CPins<T> {
 pub(crate) struct SaadcPins<const N: usize> {
     pub(crate) adc: peripherals::SAADC,
     pub(crate) pins: [AnyInput; N],
+    pub(crate) pw_switch: AnyPin,
+    pub(crate) bat_switch: AnyPin,
 }
 
 pub(crate) struct BitbangI2CPins {
@@ -76,17 +76,14 @@ fn prepare_nrf_peripherals() -> Peripherals {
     config.lfclk_source = LfclkSource::ExternalXtal;
     config.gpiote_interrupt_priority = Priority::P2;
     config.time_interrupt_priority = Priority::P2;
+
     embassy_nrf::init(config)
 }
 
 impl DeviceManager {
     pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
-        LED.lock().await.init(board.P0_22, board.P0_16, board.P0_24, board.P0_08);
         info!("Successfully Initialized LED");
-
-        let mut led = LED.lock().await;
-        led.blink_short(LedState::Purple).await;
 
         SAADC::set_priority(Priority::P3);
         SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
@@ -110,8 +107,6 @@ impl DeviceManager {
             busy: board.P0_19.degrade(),
             rst: board.P0_13.degrade(),
         };
-
-        led.blink_short(LedState::Purple).await;
 
         let bbi2c0 = BitbangI2CPins {
             scl: board.P1_11.degrade(),
@@ -137,15 +132,9 @@ impl DeviceManager {
                 board.P0_31.degrade_saadc(), // AIN7
                 board.P0_03.degrade_saadc(), // AIN1 AIN.BAT
             ],
+            pw_switch: board.P1_07.degrade(),
+            bat_switch: board.P1_08.degrade(),
         };
-
-        led.blink_short(LedState::Purple).await;
-
-        spawner.spawn(led_animation_task())?;
-        spawner.spawn(set_watchdog_task())?;
-        info!("Successfully spawned LED and Watchdog tasks");
-
-        led.blink_short(LedState::Green).await;
 
         Ok(Self {
             epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
@@ -154,17 +143,5 @@ impl DeviceManager {
             bbi2c0_pins: Arc::new(Mutex::new(bbi2c0)),
             bbi2c_exp_pins: Arc::new(Mutex::new(bbi2c_exp)),
         })
-    }
-}
-
-#[embassy_executor::task]
-async fn set_watchdog_task() {
-    loop {
-        LedStateAnimation::blink(
-            &[LedState::Blue],
-            Duration::from_millis(100),
-            Duration::from_secs(0),
-        );
-        Timer::after(Duration::from_secs(1)).await;
     }
 }

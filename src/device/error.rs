@@ -1,5 +1,7 @@
 use core::fmt;
+use core::fmt::Display;
 
+use defmt::error;
 use embassy_nrf::{spim, twim};
 use embassy_sync::channel::TrySendError;
 use thiserror_no_std::Error;
@@ -11,7 +13,7 @@ pub enum DeviceError {
     #[error("Enum is out of boundaries")]
     EnumValueOutOfBoundaries,
 
-    #[error("Format error")]
+    #[error("Format error {0}")]
     FmtError(#[from] fmt::Error),
 
     #[error("Spawn error")]

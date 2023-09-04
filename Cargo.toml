@@ -53,6 +53,8 @@ bit_field = "0.10"
 rclite = "0.2"
 embedded-graphics-core = "0.4"
 embedded-graphics = "0.8"
+embedded-layout = "0.3"
+u8g2-fonts = { version = "0.3", features = ["embedded_graphics_textstyle"] }
 atomic-polyfill = "1.0.2"
 num-derive = "0.3"
 cast = {version = "0.3.0", default-features = false }

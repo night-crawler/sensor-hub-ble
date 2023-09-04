@@ -1,6 +1,4 @@
-use core::cmp::min;
 use core::fmt;
-use core::str::from_utf8_unchecked;
 use defmt::info;
 
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
@@ -9,6 +7,7 @@ use embassy_sync::channel::Channel;
 use crate::common::ble::SERVER;
 use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
 use crate::common::device::error::DeviceError;
+use crate::common::util::buf_writer::WriteTo;
 use crate::notify_all;
 use crate::DEVICE_EVENT_PROCESSOR;
 
@@ -25,41 +24,6 @@ pub(crate) async fn ble_debug_notify_task() {
     }
 }
 
-pub struct WriteTo<'a> {
-    buf: &'a mut [u8],
-    len: usize,
-}
-
-impl<'a> WriteTo<'a> {
-    pub fn new(buf: &'a mut [u8]) -> Self {
-        WriteTo { buf, len: 0 }
-    }
-
-    pub fn to_str(self) -> Option<&'a str> {
-        if self.len <= self.buf.len() {
-            Some(unsafe { from_utf8_unchecked(&self.buf[..self.len]) })
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> fmt::Write for WriteTo<'a> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        if self.len > self.buf.len() {
-            return Err(fmt::Error);
-        }
-
-        let rem = &mut self.buf[self.len..];
-        let raw_s = s.as_bytes();
-        let num = min(raw_s.len(), rem.len());
-
-        rem[..num].copy_from_slice(&raw_s[..num]);
-        self.len += raw_s.len();
-
-        if num < raw_s.len() { Err(fmt::Error) } else { Ok(()) }
-    }
-}
 
 pub fn ble_debug_format(arg: fmt::Arguments) -> Result<(), DeviceError> {
     let mut buf = [0u8; 64];
