@@ -1,5 +1,4 @@
 use embassy_time::Timer;
-use nrf_softdevice::ble::Connection;
 use nrf_softdevice::{temperature_celsius, Softdevice};
 
 use crate::common::ble::conv::ConvExt;

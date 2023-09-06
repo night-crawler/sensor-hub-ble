@@ -1,5 +1,6 @@
 use alloc::format;
 use alloc::string::{String, ToString};
+use defmt::info;
 use crate::common::device::ui::ui_store::UiStore;
 pub(crate) struct TextRepr {
     pub(crate) bat: String,
@@ -39,17 +40,12 @@ impl TextRepr {
         }
     }
 
-    fn calculate_voltage_divider_in(v_out: f32) -> f32 {
-        let r1 = 47_000.0f32;
-        let r2 = 100_000.0f32;
-        v_out * (r1 + r2) / r2
-    }
+    
 }
 
 impl From<&UiStore> for TextRepr {
     fn from(value: &UiStore) -> Self {
-        let bat_voltage = Self::calculate_voltage_divider_in(value.bat_voltage);
-        let bat_text = Self::get_charge_level_icon_text(bat_voltage);
+        let bat_text = Self::get_charge_level_icon_text(value.bat_voltage);
         Self {
             bat: bat_text.to_string(),
             nrf_voltages: value.nrf_adc_voltages[..7].iter().map(|v| format!("{:.2}", v)).collect::<String>(),
@@ -59,7 +55,7 @@ impl From<&UiStore> for TextRepr {
             pressure: format!("{:.1}", value.pressure / 100.0),
             lux_text: format!("{:.1}", value.lux as u32),
             cct_text: format!("{:.1}", value.cct as u32),
-            rgbw_text: format!("R:{} G:{} B:{} W:{}", value.r, value.g, value.b, value.w),
+            rgbw_text: format!("R:{} G:{} B:{} W:{}; BAT:{:.2}", value.r, value.g, value.b, value.w, value.bat_voltage),
             xyz_text: format!("X: {:.2} Y: {:.2} Z: {:.2}", value.x, value.y, value.z),
             connections: format!("{}", value.num_connections),
         }

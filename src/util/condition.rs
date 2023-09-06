@@ -39,6 +39,10 @@ impl<const T: usize> Condition<T> {
         }
     }
 
+    pub fn fire_once(&self) {
+        let _ = self.channel.try_send(());
+    }
+
     pub fn disable(&self) {
         self.is_enabled.store(false, Ordering::SeqCst);
     }

@@ -55,7 +55,6 @@ async fn read_bme_task(
     server: &BleServer,
 ) -> Result<(), Bme280Error> {
     loop {
-        // Timer::after(Duration::from_secs(100000)).await;
         let _token = BME_EVENT_PROCESSOR.wait_for_condition().await;
 
         let measurements = {
@@ -89,10 +88,10 @@ async fn read_bme_task(
         }
 
 
-        info!(
-            "BME: t={}, h={}, p={}",
-            measurements.temperature, measurements.humidity, measurements.pressure
-        );
+        // info!(
+        //     "BME: t={}, h={}, p={}",
+        //     measurements.temperature, measurements.humidity, measurements.pressure
+        // );
 
         let temperature = measurements.temperature.as_temp();
         let humidity = measurements.humidity.as_humidity();
@@ -115,7 +114,6 @@ async fn read_accel_task(
     server: &BleServer,
 ) -> Result<(), accelerometer::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
-        // Timer::after(Duration::from_secs(100000)).await;
         let _token = ACCELEROMETER_EVENT_PROCESSOR.wait_for_condition().await;
         let measurements = {
             let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
@@ -145,7 +143,7 @@ async fn read_accel_task(
             store.z = measurements.z;
         }
 
-        info!("LIS: x={}, y={}, z={}", measurements.x, measurements.y, measurements.z);
+        // info!("LIS: x={}, y={}, z={}", measurements.x, measurements.y, measurements.z);
 
         notify_all!(
             ACCELEROMETER_EVENT_PROCESSOR,
@@ -170,10 +168,10 @@ async fn read_veml_task(
             let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
             let mut veml = veml6040::Veml6040::new(i2c);
             veml.set_measurement_mode(veml6040::MeasurementMode::Auto).await?;
-            veml.read_all_channels_with_oversampling(veml6040::IntegrationTime::_40ms, 50).await?
+            veml.read_all_channels_with_oversampling(veml6040::IntegrationTime::_1280ms, 2).await?
         };
 
-        let ambient = measurements.ambient_light(veml6040::IntegrationTime::_40ms);
+        let ambient = measurements.ambient_light(veml6040::IntegrationTime::_1280ms);
         let cct = measurements.compute_cct().unwrap_or(0.0f32) as u16;
 
         {

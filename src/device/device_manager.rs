@@ -1,17 +1,17 @@
 use defmt::info;
 use embassy_executor::Spawner;
+use embassy_nrf::{bind_interrupts, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Pin};
+use embassy_nrf::interrupt::Priority;
 use embassy_nrf::interrupt::typelevel::Interrupt;
 use embassy_nrf::interrupt::typelevel::SAADC;
 use embassy_nrf::interrupt::typelevel::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
 use embassy_nrf::interrupt::typelevel::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
 use embassy_nrf::interrupt::typelevel::SPIM2_SPIS2_SPI2;
-use embassy_nrf::interrupt::Priority;
 use embassy_nrf::saadc::{AnyInput, Input};
 use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
-use embassy_nrf::{bind_interrupts, peripherals, saadc, Peripherals};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use rclite::Arc;
@@ -25,6 +25,12 @@ bind_interrupts!(pub(crate) struct Irqs {
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => twim::InterruptHandler<peripherals::TWISPI1>;
     SPIM2_SPIS2_SPI2 => spim::InterruptHandler<peripherals::SPI2>;
 });
+
+pub(crate) struct  ButtonPins {
+    pub(crate) top_left: AnyPin,
+    pub(crate) top_right: AnyPin,
+    pub(crate) bottom_left: AnyPin,
+}
 
 #[allow(unused)]
 pub(crate) struct I2CPins<T> {
@@ -68,6 +74,7 @@ pub(crate) struct DeviceManager {
     pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
     pub(crate) bbi2c0_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     pub(crate) bbi2c_exp_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
+    pub(crate) button_pins: ButtonPins,
 }
 
 fn prepare_nrf_peripherals() -> Peripherals {
@@ -76,6 +83,10 @@ fn prepare_nrf_peripherals() -> Peripherals {
     config.lfclk_source = LfclkSource::ExternalXtal;
     config.gpiote_interrupt_priority = Priority::P2;
     config.time_interrupt_priority = Priority::P2;
+    // let a = unsafe {
+    //     &*nrf52840_pac::UICR::ptr()
+    // };
+    // a.regout0.write(|w| w.vout().variant(nrf52840_pac::uicr::regout0::VOUT_A::_3V3));
 
     embassy_nrf::init(config)
 }
@@ -83,7 +94,6 @@ fn prepare_nrf_peripherals() -> Peripherals {
 impl DeviceManager {
     pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
-        info!("Successfully Initialized LED");
 
         SAADC::set_priority(Priority::P3);
         SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
@@ -136,12 +146,20 @@ impl DeviceManager {
             bat_switch: board.P1_08.degrade(),
         };
 
+        let button_pins = ButtonPins {
+            top_left: board.P1_01.degrade(),
+            top_right: board.P1_05.degrade(),
+            bottom_left: board.P1_03.degrade(),
+        };
+
         Ok(Self {
             epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
             spi2_pins: Arc::new(Mutex::new(spi_tx_pins)),
             saadc_pins: Arc::new(Mutex::new(saadc_pins)),
             bbi2c0_pins: Arc::new(Mutex::new(bbi2c0)),
             bbi2c_exp_pins: Arc::new(Mutex::new(bbi2c_exp)),
+            
+            button_pins,
         })
     }
 }

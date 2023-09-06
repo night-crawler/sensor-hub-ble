@@ -1085,6 +1085,7 @@ dependencies = [
  "lazy_static",
  "nrf-softdevice",
  "nrf-softdevice-s140",
+ "nrf52840-pac",
  "num-derive",
  "num-traits",
  "panic-probe",

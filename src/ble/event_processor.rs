@@ -112,6 +112,10 @@ where
         self.condition.set(should_enable);
     }
 
+    pub(crate) fn fire_once(&self) {
+        self.condition.fire_once();
+    }
+
     pub(crate) async fn register_connection(&self, connection: &Connection) {
         _ = self.notification_settings.lock().await.entry(connection.clone()).or_default();
     }

@@ -74,3 +74,16 @@ pub(crate) static COLOR_EVENT_PROCESSOR: EventProcessor<
     ColorServiceEvent,
     1,
 > = EventProcessor::new();
+
+
+pub(crate) fn trigger_all_sensor_update() {
+    // Fire event twice, since one event will be consumed by NRF temperature task
+    // and one will go to the battery task
+    DEVICE_EVENT_PROCESSOR.fire_once();
+    DEVICE_EVENT_PROCESSOR.fire_once();
+
+    BME_EVENT_PROCESSOR.fire_once();
+    ADC_EVENT_PROCESSOR.fire_once();
+    ACCELEROMETER_EVENT_PROCESSOR.fire_once();
+    COLOR_EVENT_PROCESSOR.fire_once();
+}

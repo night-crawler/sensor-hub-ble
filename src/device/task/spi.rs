@@ -1,4 +1,5 @@
 use core::ops::Deref;
+
 use defmt::info;
 use embassy_nrf::gpio::{Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::peripherals::SPI2;
@@ -8,8 +9,12 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use embedded_graphics_core::Drawable;
 use embedded_graphics_core::prelude::DrawTarget;
+use futures::FutureExt;
+use futures::select_biased;
 use rclite::Arc;
 use spim::Spim;
+use crate::common::ble::trigger_all_sensor_update;
+use crate::common::device::config::ALL_TASK_COMPLETION_INTERVAL;
 
 use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
 use crate::common::device::device_manager::Irqs;
@@ -17,8 +22,9 @@ use crate::common::device::epd::{Display2in13, Epd2in13};
 use crate::common::device::epd::color::Color;
 use crate::common::device::epd::epd_controls::EpdControls;
 use crate::common::device::epd::graphics::DisplayRotation;
+use crate::common::device::ui::controls::DisplayRefreshType;
 use crate::common::device::ui::device_ui::Ui;
-
+use crate::common::device::ui::DISPLAY_REFRESH_EVENTS;
 use crate::common::device::ui::error::UiError;
 use crate::common::device::ui::text_repr::TextRepr;
 use crate::common::device::ui::UI_STORE;
@@ -28,14 +34,18 @@ pub(crate) async fn epd_task(
     spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI2>>>,
     control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
 ) {
-    loop {
-        info!("EPD task loop started");
-        Timer::after(Duration::from_secs(20)).await;
+    let mut refresh_type = DisplayRefreshType::Full;
 
+    // color oversampling takes 40ms * 50
+    Timer::after(ALL_TASK_COMPLETION_INTERVAL).await;
+
+    loop {
+        info!("Refreshing display");
         let mut spi_pins = spi_pins.lock().await;
         let mut control_pins = control_pins.lock().await;
 
-        let result = draw_ui(&mut spi_pins, &mut control_pins).await;
+        let result = draw_ui(&mut spi_pins, &mut control_pins, refresh_type).await;
+        refresh_type = DisplayRefreshType::Full;
 
         match result {
             Ok(_) => {
@@ -46,7 +56,13 @@ pub(crate) async fn epd_task(
             }
         }
 
-        Timer::after(Duration::from_secs(5000000)).await;
+        select_biased! {
+            _ = Timer::after(Duration::from_secs(300)).fuse() => {}
+            next_refresh_type = DISPLAY_REFRESH_EVENTS.recv().fuse() => {
+                info!("Received refresh event: {:?}", next_refresh_type);
+                refresh_type = next_refresh_type;
+            }
+        }
     }
 }
 
@@ -54,6 +70,7 @@ pub(crate) async fn epd_task(
 async fn draw_ui(
     spi_pins: &mut SpiTxPins<SPI2>,
     control_pins: &mut EpdControlPins,
+    refresh_type: DisplayRefreshType,
 ) -> Result<(), UiError<<Display2in13 as DrawTarget>::Error>> {
     let mut config = spim::Config::default();
     config.frequency = spi_pins.config.frequency;
@@ -79,13 +96,21 @@ async fn draw_ui(
     display.set_rotation(DisplayRotation::Rotate90);
 
     let mut ui = Ui::new(&mut display, Color::Black, Color::White);
-    let text_repr  = {
+    let text_repr = {
         let store = UI_STORE.lock().await;
         TextRepr::from(store.deref())
     };
     ui.draw(text_repr)?;
 
-    epd.display(display.buffer()).await?;
+    match refresh_type {
+        DisplayRefreshType::Partial => {
+            epd.display_partial(display.buffer()).await?;
+        }
+        DisplayRefreshType::Full => {
+            epd.display(display.buffer()).await?;
+        }
+    }
+
     epd.sleep().await?;
 
     Ok(())
