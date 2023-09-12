@@ -1,6 +1,6 @@
 use core::mem;
-
 use defmt::info;
+
 use embassy_nrf::{peripherals, saadc};
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Oversample, Resistor, Resolution, Saadc};
@@ -107,7 +107,7 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
                     Ok(result) => {
                         break result;
                     }
-                    Err(duration) => {
+                    Err(_) => {
                         sample_counter = sample_counter * 99 / 100;
                     }
                 }

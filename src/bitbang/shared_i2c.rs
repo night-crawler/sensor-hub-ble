@@ -1,16 +1,18 @@
-use core::future::Future;
 use core::ops::DerefMut;
-use defmt::info;
 
-use embassy_nrf::gpio::{Flex, Level, Output, OutputDrive, Pull};
+use defmt::info;
 use embassy_nrf::peripherals::TWISPI0;
+use embassy_time::Timer;
 use embassy_nrf::twim;
-use embassy_nrf::twim::{Error, Frequency, Twim};
+use embassy_nrf::twim::{Frequency, Twim};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
+use embassy_time::Duration;
 use embedded_hal_async::i2c::{ErrorType, I2c, Operation, SevenBitAddress};
+use futures::FutureExt;
+use futures::select_biased;
 
-use crate::common::bitbang::i2c::{BitbangI2C, BitbangI2CError};
+use crate::common::bitbang::i2c::BitbangI2CError;
 use crate::common::device::device_manager::{BitbangI2CPins, Irqs};
 
 pub(crate) struct SharedBitbangI2cPins<'a> {
@@ -51,11 +53,37 @@ impl<'a> SharedBitbangI2cPins<'a> {
         config.sda_pullup = false;
         config.frequency = Frequency::K400;
         let mut i2c = Twim::new(unsafe { TWISPI0::steal() }, Irqs, &mut i2c_pins_mut_ref.sda, &mut i2c_pins_mut_ref.scl, config);
-
         let result = match op {
-            Op::Write(address, write) => i2c.write(address, write).await,
-            Op::Read(address, read) => i2c.read(address, read).await,
-            Op::WriteRead(address, write, read) => i2c.write_read(address, write, read).await,
+            Op::Write(address, write) => {
+                select_biased! {
+                    res = i2c.write(address, write).fuse() => {
+                        res
+                    }
+                    _ = Timer::after(Duration::from_millis(100)).fuse() => {
+                        return Err(BitbangI2CError::WriteTimeout);
+                    }
+                }
+            }
+            Op::Read(address, read) => {
+                select_biased! {
+                    res = i2c.read(address, read).fuse() => {
+                        res
+                    }
+                    _ = Timer::after(Duration::from_millis(100)).fuse() => {
+                        return Err(BitbangI2CError::ReadTimeout);
+                    }
+                }
+            },
+            Op::WriteRead(address, write, read) => {
+                select_biased! {
+                    res = i2c.write_read(address, write, read).fuse() => {
+                        res
+                    }
+                    _ = Timer::after(Duration::from_millis(100)).fuse() => {
+                        return Err(BitbangI2CError::WriteReadTimeout);
+                    }
+                }
+            },
         };
 
         match result {

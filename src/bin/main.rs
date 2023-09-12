@@ -13,12 +13,15 @@ use embassy_executor::Spawner;
 #[allow(unused)]
 use embassy_nrf as _;
 use embedded_alloc::Heap;
-use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
+use nrf_softdevice::ble::{Connection, gatt_server, peripheral, TxPower};
 use nrf_softdevice::Softdevice;
 #[allow(unused)]
 use panic_probe as _;
 use rclite::Arc;
 
+use common::util::ble_debugger::ble_debug_notify_task;
+
+use crate::common::ble::{ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR, ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR, COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS, SERVER};
 use crate::common::ble::event_processor::{
     read_accelerometer_notification_settings_channel, read_adc_notification_settings_channel,
     read_bme_notification_settings_channel, read_color_notification_settings_channel,
@@ -26,14 +29,12 @@ use crate::common::ble::event_processor::{
 };
 use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::ble::{ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR, ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR, COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS, SERVER, trigger_all_sensor_update};
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saadc_task};
-use crate::common::device::task::i2c::read_i2c0_task;
-use crate::common::device::task::spi::epd_task;
-use common::util::ble_debugger::ble_debug_notify_task;
 use crate::common::device::task::buttons::{read_button_events, read_buttons};
+use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::nrf_temp::notify_nrf_temp;
+use crate::common::device::task::spi::epd_task;
 use crate::common::device::ui::UI_STORE;
 
 #[path = "../common.rs"]
@@ -63,8 +64,6 @@ async fn main(spawner: Spawner) {
 
     SERVER.init_ro(server);
 
-    trigger_all_sensor_update();
-
     unwrap!(spawner.spawn(epd_task(
         Arc::clone(&device_manager.spi2_pins),
         Arc::clone(&device_manager.epd_control_pins)
@@ -90,7 +89,10 @@ async fn main(spawner: Spawner) {
     info!("Init has finished successfully");
 
     loop {
-        let config = peripheral::Config::default();
+        let config = peripheral::Config {
+            tx_power: TxPower::Plus8dBm,
+            ..Default::default()
+        };
         let adv = peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
         info!("Waiting for connection");
         let conn = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);

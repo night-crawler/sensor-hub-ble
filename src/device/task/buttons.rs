@@ -1,10 +1,9 @@
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_nrf::gpio::{AnyPin, Input, Pull};
-use embassy_time::{Duration, Timer};
+use embassy_time::Timer;
 use futures::{FutureExt, select_biased};
 
-use crate::common::ble::trigger_all_sensor_update;
 use crate::common::device::config::DEBOUNCE_INTERVAL;
 use crate::common::device::device_manager::ButtonPins;
 use crate::common::device::ui::{BUTTON_EVENTS, BUTTON_STATE, DISPLAY_REFRESH_EVENTS};
@@ -72,7 +71,5 @@ pub(crate) async fn read_button_events() {
 
 #[embassy_executor::task]
 async fn handle_refresh(refresh_type: DisplayRefreshType) {
-    trigger_all_sensor_update();
-    Timer::after(Duration::from_millis(200)).await;
     DISPLAY_REFRESH_EVENTS.send(refresh_type).await;
 }

@@ -10,7 +10,7 @@ pub enum UiError<T> {
     #[error("Format error")]
     FmtError(#[from] fmt::Error),
 
-    #[error("Qwe")]
+    #[error("Display error {0}")]
     DisplayError(T),
 
     #[error("Qwe")]

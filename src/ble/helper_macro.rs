@@ -10,7 +10,7 @@ macro_rules! impl_set_notification {
             match $event {
                 $(
                     $typ::[<$field CccdWrite>] { notifications } => {
-                        info!("{} {} notifications: {}", stringify!($typ), stringify!($field), notifications);
+                        // info!("{} {} notifications: {}", stringify!($typ), stringify!($field), notifications);
                         $dst.[<$field:snake:lower>] = notifications;
                     }
                 )+

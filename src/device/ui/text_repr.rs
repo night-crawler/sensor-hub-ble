@@ -1,6 +1,5 @@
 use alloc::format;
 use alloc::string::{String, ToString};
-use defmt::info;
 use crate::common::device::ui::ui_store::UiStore;
 pub(crate) struct TextRepr {
     pub(crate) bat: String,

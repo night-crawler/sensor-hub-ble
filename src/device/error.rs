@@ -1,5 +1,4 @@
 use core::fmt;
-use core::fmt::Display;
 
 use defmt::error;
 use embassy_nrf::{spim, twim};
@@ -8,11 +7,6 @@ use thiserror_no_std::Error;
 
 #[derive(Error, Debug)]
 pub enum DeviceError {
-    // #[error("data store disconnected")]
-    // Disconnect(#[from] io::Error),
-    #[error("Enum is out of boundaries")]
-    EnumValueOutOfBoundaries,
-
     #[error("Format error {0}")]
     FmtError(#[from] fmt::Error),
 

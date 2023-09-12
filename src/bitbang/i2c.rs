@@ -19,6 +19,9 @@ impl Default for Config {
 #[derive(Debug, defmt::Format)]
 pub enum BitbangI2CError {
     NoAck,
+    WriteTimeout,
+    ReadTimeout,
+    WriteReadTimeout,
     InvalidData,
 }
 
@@ -174,6 +177,9 @@ impl Error for BitbangI2CError {
         match self {
             BitbangI2CError::NoAck => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Data),
             BitbangI2CError::InvalidData => ErrorKind::Other,
+            BitbangI2CError::WriteTimeout => ErrorKind::Other,
+            BitbangI2CError::ReadTimeout => ErrorKind::Other,
+            BitbangI2CError::WriteReadTimeout => ErrorKind::Other,
         }
     }
 }

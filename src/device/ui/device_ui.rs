@@ -1,4 +1,3 @@
-use embedded_graphics::text::renderer::TextRenderer;
 use embedded_graphics::text::Text;
 use embedded_graphics_core::Drawable;
 use embedded_graphics_core::prelude::{DrawTarget, OriginDimensions, Point};
@@ -10,7 +9,6 @@ use u8g2_fonts::U8g2TextStyle;
 use crate::common::device::ui::error::UiError;
 use crate::common::device::ui::text_repr::TextRepr;
 use crate::common::device::ui::ui_macro::{chain_text_step, h_layout, m_chain, v_layout};
-use crate::common::device::ui::ui_store::UiStore;
 
 static VERTICAL_MARGIN: FixedMargin = FixedMargin(5);
 

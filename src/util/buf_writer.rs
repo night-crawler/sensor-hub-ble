@@ -19,14 +19,6 @@ impl<'a> WriteTo<'a> {
             None
         }
     }
-
-    pub fn fmt(mut self, args: fmt::Arguments) -> Result<&'a str, fmt::Error> {
-        fmt::write(&mut self, args)?;
-        match self.to_str() {
-            None => Err(fmt::Error),
-            Some(s) => Ok(s)
-        }
-    }
 }
 
 impl<'a> fmt::Write for WriteTo<'a> {

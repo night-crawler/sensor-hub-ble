@@ -5,7 +5,6 @@ pub(crate) mod epd;
 pub(crate) mod error;
 pub(crate) mod ext;
 pub(crate) mod lis2dh12;
-pub(crate) mod out_pin_manager;
 pub(crate) mod task;
 pub(crate) mod veml6040;
 pub(crate) mod ui;

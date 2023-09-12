@@ -7,7 +7,6 @@ use embassy_nrf::spim;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use embedded_graphics_core::Drawable;
 use embedded_graphics_core::prelude::DrawTarget;
 use futures::FutureExt;
 use futures::select_biased;
@@ -35,25 +34,29 @@ pub(crate) async fn epd_task(
     control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
 ) {
     let mut refresh_type = DisplayRefreshType::Full;
-
-    // color oversampling takes 40ms * 50
-    Timer::after(ALL_TASK_COMPLETION_INTERVAL).await;
+    let mut is_forced = false;
+    let mut is_first_run = true;
 
     loop {
-        info!("Refreshing display");
+        trigger_all_sensor_update();
+        Timer::after(ALL_TASK_COMPLETION_INTERVAL).await;
+
         let mut spi_pins = spi_pins.lock().await;
         let mut control_pins = control_pins.lock().await;
 
-        let result = draw_ui(&mut spi_pins, &mut control_pins, refresh_type).await;
-        refresh_type = DisplayRefreshType::Full;
+        let should_render = is_first_run || is_forced || UI_STORE.lock().await.lux > 5.0;
+        let result = if should_render {
+            let result = draw_ui(&mut spi_pins, &mut control_pins, refresh_type).await;
+            refresh_type = DisplayRefreshType::Full;
+            is_forced = false;
+            is_first_run = false;
+            result
+        } else {
+            Ok(())
+        };
 
-        match result {
-            Ok(_) => {
-                info!("Success!");
-            }
-            Err(e) => {
-                info!("EPD Error: {:?}", e);
-            }
+        if let Err(err) = result {
+            info!("EPD Error: {:?}", err);
         }
 
         select_biased! {
@@ -61,6 +64,7 @@ pub(crate) async fn epd_task(
             next_refresh_type = DISPLAY_REFRESH_EVENTS.recv().fuse() => {
                 info!("Received refresh event: {:?}", next_refresh_type);
                 refresh_type = next_refresh_type;
+                is_forced = true;
             }
         }
     }

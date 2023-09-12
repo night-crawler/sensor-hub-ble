@@ -1,4 +1,3 @@
-use defmt::info;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
@@ -184,7 +183,7 @@ async fn read_veml_task(
             store.w = measurements.white;
         }
 
-        info!("Color: {}; ambient light: {}, cct: {}", measurements, ambient, cct);
+        // info!("Color: {}; ambient light: {}, cct: {}", measurements, ambient, cct);
 
         notify_all!(
             COLOR_EVENT_PROCESSOR,

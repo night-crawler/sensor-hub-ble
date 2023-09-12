@@ -1,5 +1,4 @@
 use core::marker::PhantomData;
-use defmt::info;
 use embassy_time::{Duration, Timer};
 
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
