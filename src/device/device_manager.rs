@@ -8,6 +8,7 @@ use embassy_nrf::interrupt::typelevel::Interrupt;
 use embassy_nrf::interrupt::typelevel::SAADC;
 use embassy_nrf::interrupt::typelevel::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
 use embassy_nrf::interrupt::typelevel::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
+use embassy_nrf::interrupt::typelevel::SPIM3;
 use embassy_nrf::interrupt::typelevel::SPIM2_SPIS2_SPI2;
 use embassy_nrf::saadc::{AnyInput, Input};
 use embassy_nrf::spim;
@@ -23,10 +24,28 @@ bind_interrupts!(pub(crate) struct Irqs {
     SAADC => saadc::InterruptHandler;
     SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0 => twim::InterruptHandler<peripherals::TWISPI0>;
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => twim::InterruptHandler<peripherals::TWISPI1>;
+    SPIM3 => spim::InterruptHandler<peripherals::SPI3>;
     SPIM2_SPIS2_SPI2 => spim::InterruptHandler<peripherals::SPI2>;
 });
 
-pub(crate) struct  ButtonPins {
+
+pub(crate) struct ExpanderPins<SPI, TWIM> {
+    pub(crate) miso: AnyPin,
+    pub(crate) mosi: AnyPin,
+    pub(crate) sck: AnyPin,
+
+    pub(crate) power_switch: AnyPin,
+    pub(crate) a0: AnyPin,
+    pub(crate) a1: AnyPin,
+    pub(crate) a2: AnyPin,
+
+    pub(crate) spi_peripheral: SPI,
+    pub(crate) i2c_peripheral: TWIM,
+    pub(crate) spim_config: spim::Config,
+    pub(crate) i2c_config: twim::Config,
+}
+
+pub(crate) struct ButtonPins {
     pub(crate) top_left: AnyPin,
     pub(crate) top_right: AnyPin,
     pub(crate) bottom_left: AnyPin,
@@ -75,6 +94,7 @@ pub(crate) struct DeviceManager {
     pub(crate) bbi2c0_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     pub(crate) bbi2c_exp_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     pub(crate) button_pins: ButtonPins,
+    pub(crate) expander_pins: Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
 }
 
 fn prepare_nrf_peripherals() -> Peripherals {
@@ -95,20 +115,23 @@ impl DeviceManager {
     pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
 
+        // TWISPI0 is stolen
         SAADC::set_priority(Priority::P3);
         SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0::set_priority(Priority::P2);
         SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1::set_priority(Priority::P2);
+        SPIM3::set_priority(Priority::P7);
+
         SPIM2_SPIS2_SPI2::set_priority(Priority::P3);
         info!("Successfully set interrupt priorities");
 
-        let mut spim_conf = spim::Config::default();
-        spim_conf.frequency = spim::Frequency::K500;
+        let mut epd_spim_conf = spim::Config::default();
+        epd_spim_conf.frequency = spim::Frequency::M2;
 
         let spi_tx_pins = SpiTxPins {
             spim: board.SPI2,
             sck: board.P0_21.degrade(),
             mosi: board.P0_23.degrade(),
-            config: spim_conf,
+            config: epd_spim_conf,
         };
 
         let epd_control_pins = EpdControlPins {
@@ -152,14 +175,32 @@ impl DeviceManager {
             bottom_left: board.P1_03.degrade(),
         };
 
+
+        let expander_pins = ExpanderPins {
+            miso: board.P0_16.degrade(),
+            mosi: board.P0_14.degrade(),
+            sck: board.P0_20.degrade(),
+
+            power_switch: board.P0_22.degrade(),
+            a0: board.P0_24.degrade(),
+            a1: board.P0_25.degrade(),
+            a2: board.P1_02.degrade(),
+
+            spim_config: Default::default(),
+            i2c_config: Default::default(),
+            i2c_peripheral: board.TWISPI1,
+            spi_peripheral: board.SPI3,
+        };
+
         Ok(Self {
             epd_control_pins: Arc::new(Mutex::new(epd_control_pins)),
             spi2_pins: Arc::new(Mutex::new(spi_tx_pins)),
             saadc_pins: Arc::new(Mutex::new(saadc_pins)),
             bbi2c0_pins: Arc::new(Mutex::new(bbi2c0)),
             bbi2c_exp_pins: Arc::new(Mutex::new(bbi2c_exp)),
-            
+
             button_pins,
+            expander_pins: Arc::new(Mutex::new(expander_pins)),
         })
     }
 }

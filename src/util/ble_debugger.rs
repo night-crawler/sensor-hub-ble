@@ -1,4 +1,6 @@
+use alloc::string::String;
 use core::fmt;
+use core::str::from_utf8_unchecked;
 use defmt::info;
 
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
@@ -25,12 +27,14 @@ pub(crate) async fn ble_debug_notify_task() {
 }
 
 
-pub fn ble_debug_format(arg: fmt::Arguments) -> Result<(), DeviceError> {
-    let mut buf = [0u8; 64];
+pub fn ble_debug_format(args: fmt::Arguments) -> Result<(), DeviceError> {
+    let mut buf = [0u8; BLE_DEBUG_ARRAY_LEN];
     let mut w = WriteTo::new(&mut buf);
-    fmt::write(&mut w, arg)?;
+    fmt::write(&mut w, args)?;
     info!("ble_debug: {}", w.to_str().unwrap_or("invalid utf8"));
-    CHANNEL.try_send(buf)?;
+    if let Err(err) = CHANNEL.try_send(buf) {
+        info!("Failed to send debug message");
+    }
     Ok(())
 }
 

@@ -2,6 +2,8 @@ use core::cmp::min;
 use core::fmt;
 use core::str::from_utf8_unchecked;
 
+use defmt::info;
+
 pub struct WriteTo<'a> {
     buf: &'a mut [u8],
     len: usize,
@@ -34,6 +36,12 @@ impl<'a> fmt::Write for WriteTo<'a> {
         rem[..num].copy_from_slice(&raw_s[..num]);
         self.len += raw_s.len();
 
-        if num < raw_s.len() { Err(fmt::Error) } else { Ok(()) }
+        if num < raw_s.len() {
+            let present_string = unsafe { from_utf8_unchecked(self.buf) };
+            info!("Failed to write string: {}; present: {}", s, present_string);
+            Err(fmt::Error)
+        } else {
+            Ok(())
+        }
     }
 }

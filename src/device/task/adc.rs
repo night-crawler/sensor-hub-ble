@@ -57,9 +57,10 @@ pub(crate) async fn read_saadc_battery_voltage_task(
                 server.dis,
                 battery_voltage = &serialized_voltages[7]
             );
+
+        Timer::after(DEVICE_EVENT_PROCESSOR.get_timeout_duration()).await;
     }
 
-    Timer::after(DEVICE_EVENT_PROCESSOR.get_timeout_duration()).await;
 }
 
 #[embassy_executor::task]

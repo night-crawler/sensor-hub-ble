@@ -2,10 +2,15 @@
 macro_rules! ble_notify {
     ($service:expr, $conn:expr, $characteristic:ident, $value:expr) => {
         paste::paste! {
+            let __name = stringify!($characteristic);
             if let Err(err) = $service.[<$characteristic _notify>]($conn, $value) {
-                $crate::ble_debug!("{} notify error: {:?} - {:?}", stringify!($characteristic), err, $value);
+                if __name != "debug" {
+                    $crate::ble_debug!("Notify {} error: {:?}", stringify!($characteristic), err);
+                }
                 if let Err(err) = $service.[<$characteristic _set>]($value) {
-                    $crate::ble_debug!("{} notify error: {:?} - {:?}", stringify!($characteristic), err, $value);
+                    if __name != "debug" {
+                        $crate::ble_debug!("Set {} notify error: {:?}", stringify!($characteristic), err);
+                    }
                 }
             }
         }

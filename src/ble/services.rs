@@ -1,3 +1,5 @@
+use crate::common::device::config::BLE_DEBUG_ARRAY_LEN;
+
 #[nrf_softdevice::gatt_service(uuid = "180A")]
 pub(crate) struct DeviceInformationService {
     #[characteristic(uuid = "00002b18-0000-1000-8999-00805f9b34fb", read, notify)]
@@ -7,7 +9,7 @@ pub(crate) struct DeviceInformationService {
     pub(crate) temperature: i16,
 
     #[characteristic(uuid = "2BDE", read, notify)]
-    pub(crate) debug: [u8; 64],
+    pub(crate) debug: [u8; BLE_DEBUG_ARRAY_LEN],
 
     #[characteristic(uuid = "a0e4d2ba-0002-8000-8789-00805f9b34fb", read, write, notify)]
     pub(crate) timeout: u32,
@@ -121,6 +123,27 @@ pub(crate) struct ColorService {
     pub(crate) timeout: u32,
 }
 
+#[nrf_softdevice::gatt_service(uuid = "ac866789-aaaa-eeee-a329-969d4bc8621e")]
+pub(crate) struct SpiExpanderService {
+    #[characteristic(uuid = "0000A001-0000-1000-8000-00805F9B34FB", write)]
+    pub(crate) mosi: [u8; 64],
+
+    #[characteristic(uuid = "0000A002-0000-1000-8000-00805F9B34FB", read, notify)]
+    pub(crate) miso: [u8; 64],
+
+    #[characteristic(uuid = "0000A003-0000-1000-8000-00805F9B34FB", read, notify)]
+    pub(crate) cs: u8,
+
+    #[characteristic(uuid = "0000A004-0000-1000-8000-00805F9B34FB", read, notify)]
+    pub(crate) command: u8,
+
+    #[characteristic(uuid = "0000A005-0000-1000-8000-00805F9B34FB", write, read, notify)]
+    pub(crate) lock: u8,
+
+    #[characteristic(uuid = "0000A006-0000-1000-8000-00805F9B34FB", read, notify)]
+    pub(crate) power: bool,
+}
+
 #[nrf_softdevice::gatt_server]
 pub(crate) struct BleServer {
     pub(crate) dis: DeviceInformationService,
@@ -128,4 +151,5 @@ pub(crate) struct BleServer {
     pub(crate) bme280: Bme280Service,
     pub(crate) accelerometer: AccelerometerService,
     pub(crate) color: ColorService,
+    pub(crate) spi_expander: SpiExpanderService,
 }

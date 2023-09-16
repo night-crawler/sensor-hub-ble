@@ -32,6 +32,7 @@ use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_c
 use crate::common::device::device_manager::DeviceManager;
 use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saadc_task};
 use crate::common::device::task::buttons::{read_button_events, read_buttons};
+use crate::common::device::task::expander::expander_task;
 use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::nrf_temp::notify_nrf_temp;
 use crate::common::device::task::spi::epd_task;
@@ -63,6 +64,10 @@ async fn main(spawner: Spawner) {
     let server = unwrap!(BleServer::new(sd));
 
     SERVER.init_ro(server);
+
+    unwrap!(spawner.spawn(expander_task(
+        Arc::clone(&device_manager.expander_pins),
+    )));
 
     unwrap!(spawner.spawn(epd_task(
         Arc::clone(&device_manager.spi2_pins),
@@ -103,6 +108,8 @@ async fn main(spawner: Spawner) {
 
 #[embassy_executor::task(pool_size = 3)]
 async fn handle_connection(connection: Connection) {
+    ble_debug!("Peer: {:?}", connection.peer_address());
+
     DEVICE_EVENT_PROCESSOR.register_connection(&connection).await;
     BME_EVENT_PROCESSOR.register_connection(&connection).await;
     ADC_EVENT_PROCESSOR.register_connection(&connection).await;
@@ -135,6 +142,7 @@ async fn handle_connection(connection: Connection) {
                 ble_debug!("Failed to send Color service event")
             }
         }
+        BleServerEvent::SpiExpander(_) => {}
     });
 
     let _error = server_fut.await;
