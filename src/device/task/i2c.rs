@@ -88,10 +88,10 @@ async fn read_bme_task(
         }
 
 
-        info!(
-            "BME: t={}, h={}, p={}",
-            measurements.temperature, measurements.humidity, measurements.pressure
-        );
+        // info!(
+        //     "BME: t={}, h={}, p={}",
+        //     measurements.temperature, measurements.humidity, measurements.pressure
+        // );
 
         let temperature = measurements.temperature.as_temp();
         let humidity = measurements.humidity.as_humidity();

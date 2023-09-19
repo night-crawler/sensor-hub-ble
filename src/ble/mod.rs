@@ -1,15 +1,14 @@
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
+use embassy_sync::mutex::Mutex;
+use embassy_time::Instant;
 use nrf_softdevice::ble::Connection;
 
 use crate::common::ble::event_processor::{
     AccelerometerNotificationSettings, AdcNotificationSettings, BmeNotificationSettings,
     ColorNotificationSettings, DiNotificationSettings, EventProcessor,
 };
-use crate::common::ble::services::{
-    AccelerometerServiceEvent, AdcServiceEvent, BleServer, Bme280ServiceEvent, ColorServiceEvent,
-    DeviceInformationServiceEvent,
-};
+use crate::common::ble::services::{AccelerometerServiceEvent, AdcServiceEvent, BleServer, Bme280ServiceEvent, ColorServiceEvent, DeviceInformationServiceEvent, SpiExpanderServiceEvent};
 use crate::common::device::config::NUM_CONNECTIONS;
 use crate::common::util::custom_static_cell::CustomStaticCell;
 
@@ -51,6 +50,14 @@ pub(crate) static COLOR_SERVICE_EVENTS: Channel<
     (Connection, ColorServiceEvent),
     NUM_CONNECTIONS,
 > = Channel::new();
+
+pub(crate) static SPI_EXPANDER_EVENTS: Channel<
+    ThreadModeRawMutex,
+    (Connection, SpiExpanderServiceEvent),
+    10,
+> = Channel::new();
+
+pub(crate) static SPI_EXPANDER_LOCK_OWNER: Mutex<ThreadModeRawMutex, Option<(Instant, Connection)>> = Mutex::new(None);
 
 pub(crate) static DEVICE_EVENT_PROCESSOR: EventProcessor<
     DiNotificationSettings,

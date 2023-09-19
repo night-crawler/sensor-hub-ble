@@ -2,14 +2,14 @@ use defmt::info;
 use embassy_executor::Spawner;
 use embassy_nrf::{bind_interrupts, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
-use embassy_nrf::gpio::{AnyPin, Pin};
+use embassy_nrf::gpio::{AnyPin, Level, Output, OutputDrive, Pin};
 use embassy_nrf::interrupt::Priority;
 use embassy_nrf::interrupt::typelevel::Interrupt;
 use embassy_nrf::interrupt::typelevel::SAADC;
 use embassy_nrf::interrupt::typelevel::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
 use embassy_nrf::interrupt::typelevel::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
-use embassy_nrf::interrupt::typelevel::SPIM3;
 use embassy_nrf::interrupt::typelevel::SPIM2_SPIS2_SPI2;
+use embassy_nrf::interrupt::typelevel::SPIM3;
 use embassy_nrf::saadc::{AnyInput, Input};
 use embassy_nrf::spim;
 use embassy_nrf::twim::{self};
@@ -34,10 +34,10 @@ pub(crate) struct ExpanderPins<SPI, TWIM> {
     pub(crate) mosi: AnyPin,
     pub(crate) sck: AnyPin,
 
-    pub(crate) power_switch: AnyPin,
-    pub(crate) a0: AnyPin,
-    pub(crate) a1: AnyPin,
-    pub(crate) a2: AnyPin,
+    pub(crate) power_switch: Output<'static, AnyPin>,
+    pub(crate) a0: Output<'static, AnyPin>,
+    pub(crate) a1: Output<'static, AnyPin>,
+    pub(crate) a2: Output<'static, AnyPin>,
 
     pub(crate) spi_peripheral: SPI,
     pub(crate) i2c_peripheral: TWIM,
@@ -181,10 +181,10 @@ impl DeviceManager {
             mosi: board.P0_14.degrade(),
             sck: board.P0_20.degrade(),
 
-            power_switch: board.P0_22.degrade(),
-            a0: board.P0_24.degrade(),
-            a1: board.P0_25.degrade(),
-            a2: board.P1_02.degrade(),
+            power_switch: Output::new(board.P0_22.degrade(), Level::Low, OutputDrive::Disconnect0Standard1),
+            a0: Output::new(board.P0_24.degrade(), Level::Low, OutputDrive::Disconnect0Standard1),
+            a1: Output::new(board.P0_25.degrade(), Level::Low, OutputDrive::Disconnect0Standard1),
+            a2: Output::new(board.P1_02.degrade(), Level::Low, OutputDrive::Disconnect0Standard1),
 
             spim_config: Default::default(),
             i2c_config: Default::default(),
