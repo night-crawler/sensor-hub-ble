@@ -8,3 +8,4 @@ pub(crate) mod lis2dh12;
 pub(crate) mod task;
 pub(crate) mod veml6040;
 pub(crate) mod ui;
+pub(crate) mod expander;

@@ -30,7 +30,7 @@ pub enum CustomI2CError {
 }
 
 #[derive(Error, Debug, defmt::Format)]
-pub(crate) enum SpiExpanderError {
+pub(crate) enum ExpanderError {
     #[error("Invalid command")]
     MutexReleaseNotLocked,
 
@@ -51,6 +51,9 @@ pub(crate) enum SpiExpanderError {
 
     #[error("GATT SPI Expander Error")]
     SpiError(#[from] spim::Error),
+
+    #[error("GATT I2C Expander Error")]
+    I2cError(#[from] twim::Error),
 }
 
 #[derive(Error, Debug, defmt::Format)]

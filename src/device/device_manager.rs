@@ -30,6 +30,9 @@ bind_interrupts!(pub(crate) struct Irqs {
 
 
 pub(crate) struct ExpanderPins<SPI, TWIM> {
+    pub(crate) sda: AnyPin,
+    pub(crate) scl: AnyPin,
+
     pub(crate) miso: AnyPin,
     pub(crate) mosi: AnyPin,
     pub(crate) sck: AnyPin,
@@ -92,7 +95,6 @@ pub(crate) struct DeviceManager {
     pub(crate) spi2_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
     pub(crate) epd_control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
     pub(crate) bbi2c0_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
-    pub(crate) bbi2c_exp_pins: Arc<Mutex<ThreadModeRawMutex, BitbangI2CPins>>,
     pub(crate) button_pins: ButtonPins,
     pub(crate) expander_pins: Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
 }
@@ -147,12 +149,6 @@ impl DeviceManager {
             config: Default::default(),
         };
 
-        let bbi2c_exp = BitbangI2CPins {
-            scl: board.P1_06.degrade(),
-            sda: board.P1_04.degrade(),
-            config: Default::default(),
-        };
-
         let saadc_pins = SaadcPins {
             adc: board.SAADC,
             pins: [
@@ -177,6 +173,9 @@ impl DeviceManager {
 
 
         let expander_pins = ExpanderPins {
+            sda: board.P1_04.degrade(),
+            scl: board.P1_06.degrade(),
+
             miso: board.P0_16.degrade(),
             mosi: board.P0_14.degrade(),
             sck: board.P0_20.degrade(),
@@ -197,7 +196,6 @@ impl DeviceManager {
             spi2_pins: Arc::new(Mutex::new(spi_tx_pins)),
             saadc_pins: Arc::new(Mutex::new(saadc_pins)),
             bbi2c0_pins: Arc::new(Mutex::new(bbi2c0)),
-            bbi2c_exp_pins: Arc::new(Mutex::new(bbi2c_exp)),
 
             button_pins,
             expander_pins: Arc::new(Mutex::new(expander_pins)),

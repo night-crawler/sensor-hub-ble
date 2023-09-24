@@ -35,8 +35,8 @@ use crate::common::device::task::buttons::{read_button_events, read_buttons};
 use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::nrf_temp::notify_nrf_temp;
 use crate::common::device::task::spi::epd_task;
-use crate::common::device::task::spi_expander::{expander_task, spi_expander_mutex_timeout_task};
-use crate::common::device::task::spi_expander;
+use crate::common::device::task::expander::{expander_task, expander_mutex_timeout_task};
+use crate::common::device::task::expander;
 use crate::common::device::ui::UI_STORE;
 
 #[path = "../common.rs"]
@@ -67,7 +67,7 @@ async fn main(spawner: Spawner) {
     SERVER.init_ro(server);
 
     unwrap!(spawner.spawn(expander_task(Arc::clone(&device_manager.expander_pins))));
-    unwrap!(spawner.spawn(spi_expander_mutex_timeout_task(Arc::clone(&device_manager.expander_pins))));
+    unwrap!(spawner.spawn(expander_mutex_timeout_task(Arc::clone(&device_manager.expander_pins))));
 
     unwrap!(spawner.spawn(epd_task(
         Arc::clone(&device_manager.spi2_pins),
@@ -103,7 +103,7 @@ async fn main(spawner: Spawner) {
         let connection = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
         unwrap!(spawner.spawn(handle_connection(connection.clone())));
 
-        spi_expander::handle_disconnect(&connection, Arc::clone(&device_manager.expander_pins)).await;
+        expander::handle_disconnect(&connection, Arc::clone(&device_manager.expander_pins)).await;
 
         UI_STORE.lock().await.num_connections = Connection::iter().count() as u8
     }
@@ -145,7 +145,7 @@ async fn handle_connection(connection: Connection) {
                 ble_debug!("Failed to send Color service event")
             }
         }
-        BleServerEvent::SpiExpander(event) => {
+        BleServerEvent::Expander(event) => {
             if SPI_EXPANDER_EVENTS.try_send((connection.clone(), event)).is_err() {
                 ble_debug!("Failed to send SpiExpander service event")
             }

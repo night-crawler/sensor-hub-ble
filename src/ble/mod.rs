@@ -8,7 +8,7 @@ use crate::common::ble::event_processor::{
     AccelerometerNotificationSettings, AdcNotificationSettings, BmeNotificationSettings,
     ColorNotificationSettings, DiNotificationSettings, EventProcessor,
 };
-use crate::common::ble::services::{AccelerometerServiceEvent, AdcServiceEvent, BleServer, Bme280ServiceEvent, ColorServiceEvent, DeviceInformationServiceEvent, SpiExpanderServiceEvent};
+use crate::common::ble::services::{AccelerometerServiceEvent, AdcServiceEvent, BleServer, Bme280ServiceEvent, ColorServiceEvent, DeviceInformationServiceEvent, ExpanderServiceEvent};
 use crate::common::device::config::NUM_CONNECTIONS;
 use crate::common::util::custom_static_cell::CustomStaticCell;
 
@@ -53,7 +53,7 @@ pub(crate) static COLOR_SERVICE_EVENTS: Channel<
 
 pub(crate) static SPI_EXPANDER_EVENTS: Channel<
     ThreadModeRawMutex,
-    (Connection, SpiExpanderServiceEvent),
+    (Connection, ExpanderServiceEvent),
     10,
 > = Channel::new();
 
