@@ -5,26 +5,33 @@ use embassy_nrf::spim::Spim;
 use embassy_nrf::twim::Twim;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::Instant;
 use nrf_softdevice::ble::Connection;
 use rclite::Arc;
 
 use crate::common::ble::SPI_EXPANDER_LOCK_OWNER;
-use crate::common::device::config::BLE_EXPANDER_BUF_SIZE;
+use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_LOCK_TIMEOUT};
 use crate::common::device::device_manager::{ExpanderPins, Irqs};
 use crate::common::device::error::ExpanderError;
 use crate::common::device::expander::command::Command;
-use crate::common::device::expander::expander_state::ExpanderType;
+use crate::common::device::expander::expander_state::{ExpanderState, ExpanderType};
 use crate::common::device::expander::ext::Expander;
 use crate::common::util::ble_debugger::ConnectionDebug;
+use crate::common::util::timeout_tracker::TimeoutTracker;
 
 pub(crate) mod expander_state;
 pub(crate) mod command;
 pub(crate) mod ext;
 
+
+pub(crate) static EXPANDER_STATE: Mutex<ThreadModeRawMutex, Option<ExpanderState>> = Mutex::new(None);
+
+pub(crate) static TIMEOUT_TRACKER: TimeoutTracker<Connection> = TimeoutTracker::new(BLE_EXPANDER_LOCK_TIMEOUT);
+
+
+
 pub(crate) async fn authenticate(connection: &Connection) -> Result<(), ExpanderError> {
     let owner = SPI_EXPANDER_LOCK_OWNER.lock().await;
-    if let Some((_, owning_connection)) = owner.as_ref() {
+    if let Some(owning_connection) = owner.as_ref() {
         if owning_connection == connection {
             Ok(())
         } else {
@@ -61,7 +68,7 @@ pub(crate) async fn handle_mutex_acquire_release(
             if next_lock_value == 0 {
                 Err(ExpanderError::MutexReleaseNotLocked)
             } else {
-                *owner = Some((Instant::now(), connection.clone()));
+                *owner = Some(connection.clone());
 
                 if next_lock_value == 1 {
                     Ok(ExpanderType::Spi)
@@ -70,10 +77,10 @@ pub(crate) async fn handle_mutex_acquire_release(
                 }
             }
         }
-        Some((_, owning_connection)) if owning_connection == connection => {
+        Some(owning_connection) if owning_connection == connection => {
             if next_lock_value == 0 {
-                *owner = None;
-                Ok(ExpanderType::None)
+                owner.take();
+                Ok(ExpanderType::NotSet)
             } else {
                 Err(ExpanderError::MutexAcquireTwiceSameClient)
             }
@@ -97,7 +104,7 @@ pub(crate) async fn handle_power(
     }
 }
 
-pub(crate) async fn handle_spi_write(
+pub(crate) async fn handle_spi_exec(
     pins: &Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
     command: Command,
     write_buf: &[u8],
@@ -132,11 +139,12 @@ pub(crate) async fn handle_spi_write(
 }
 
 
-pub(crate) async fn handle_i2c_write(
+pub(crate) async fn handle_i2c_exec(
     pins: &Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
     address: u8,
     command: Command,
     write_buf: &[u8],
+    size_read: usize
 ) -> Result<Option<[u8; BLE_EXPANDER_BUF_SIZE]>, ExpanderError> {
     let mut pins = pins.lock().await;
     let pins = pins.deref_mut();
@@ -158,12 +166,28 @@ pub(crate) async fn handle_i2c_write(
             Ok(None)
         }
         Command::Read => {
-            i2c.read(address, &mut read_buf[..write_buf.len()]).await?;
+            i2c.read(address, &mut read_buf[..size_read]).await?;
             Ok(Some(read_buf))
         }
         Command::Transfer => {
-            i2c.write_read(address, write_buf, &mut read_buf[..write_buf.len()]).await?;
+            i2c.write_read(address, write_buf, &mut read_buf[..size_read]).await?;
             Ok(Some(read_buf))
+        }
+    }
+}
+
+
+pub(crate) async fn handle_expander_disconnect(
+    connection: &Connection,
+    pins: &Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
+) {
+    let mut owner = SPI_EXPANDER_LOCK_OWNER.lock().await;
+    if let Some(owning_connection) = owner.as_ref() {
+        if owning_connection == connection {
+            owner.take();
+            EXPANDER_STATE.lock().await.as_mut().take();
+            handle_power(pins, false).await;
+            handle_set_cs(pins, 0).await;
         }
     }
 }

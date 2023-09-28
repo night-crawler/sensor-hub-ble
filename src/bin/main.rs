@@ -3,6 +3,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 #![feature(async_fn_in_trait)]
+#![feature(if_let_guard)]
 
 extern crate alloc;
 
@@ -15,6 +16,7 @@ use embassy_nrf as _;
 use embedded_alloc::Heap;
 use nrf_softdevice::ble::{Connection, gatt_server, peripheral, TxPower};
 use nrf_softdevice::Softdevice;
+use nrf_softdevice_s140::ble_gap_conn_params_t;
 #[allow(unused)]
 use panic_probe as _;
 use rclite::Arc;
@@ -30,6 +32,7 @@ use crate::common::ble::event_processor::{
 use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
 use crate::common::device::device_manager::DeviceManager;
+use crate::common::device::expander::{handle_expander_disconnect, TIMEOUT_TRACKER};
 use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saadc_task};
 use crate::common::device::task::buttons::{read_button_events, read_buttons};
 use crate::common::device::task::i2c::read_i2c0_task;
@@ -95,16 +98,32 @@ async fn main(spawner: Spawner) {
 
     loop {
         let config = peripheral::Config {
+            // primary_phy: Phy::M2,
+            // secondary_phy: Phy::M2,
             tx_power: TxPower::Plus8dBm,
             ..Default::default()
         };
         let adv = peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
         info!("Waiting for connection");
         let connection = unwrap!(peripheral::advertise_connectable(sd, adv, &config).await);
+
+        //  If both conn_sup_timeout and max_conn_interval are specified, then the following constraint applies:"]
+        //  conn_sup_timeout * 4 > (1 + slave_latency) * max_conn_interval"]
+        //  that corresponds to the following Bluetooth Spec requirement:"]
+        //  The Supervision_Timeout in milliseconds shall be larger than"]
+        //  (1 + Conn_Latency) * Conn_Interval_Max * 2, where Conn_Interval_Max is given in milliseconds."]
+        if let Err(err) = connection.set_conn_params(ble_gap_conn_params_t {
+            min_conn_interval: 0,
+            max_conn_interval: 1,
+            slave_latency: 0,
+            conn_sup_timeout: 200, // 4s
+        }) {
+            info!("Failed to set connection params {:?}", err);
+        }
         unwrap!(spawner.spawn(handle_connection(connection.clone())));
 
-        expander::handle_disconnect(&connection, Arc::clone(&device_manager.expander_pins)).await;
-
+        handle_expander_disconnect(&connection, &device_manager.expander_pins).await;
+        TIMEOUT_TRACKER.stop_tracking(&connection).await;
         UI_STORE.lock().await.num_connections = Connection::iter().count() as u8
     }
 }

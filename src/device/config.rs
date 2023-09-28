@@ -8,8 +8,10 @@ pub(crate) const LED_ANIMATION_QUEUE_LEN: usize = 32;
 pub(crate) const BLE_DEBUG_QUEUE_LEN: usize = 2;
 pub(crate) const BLE_DEBUG_ARRAY_LEN: usize = 128;
 
-pub(crate) const BLE_EXPANDER_BUF_SIZE: usize = 512;
-pub(crate) const BLE_EXPANDER_TIMEOUT: Duration = Duration::from_secs(20);
+pub(crate) const BLE_EXPANDER_CONTROL_BYTES_SIZE: usize = 16;
+pub(crate) const BLE_EXPANDER_BUF_SIZE: usize = 512 - BLE_EXPANDER_CONTROL_BYTES_SIZE;
+pub(crate) const BLE_EXPANDER_LOCK_TIMEOUT: Duration = Duration::from_secs(20);
+pub(crate) const BLE_EXPANDER_EXEC_TIMEOUT: Duration = Duration::from_millis(500);
 
 pub(crate) const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(50);
 

@@ -18,7 +18,7 @@ pub(crate) fn prepare_softdevice_config() -> Config {
         }),
         common_vs_uuid: Some(raw::ble_common_cfg_vs_uuid_t {
             // sd_ble_uuid_vs_add err NoMem
-            vs_uuid_count: 42,
+            vs_uuid_count: 50,
         }),
         conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 256 }),
         gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t { attr_tab_size: 32768 }),

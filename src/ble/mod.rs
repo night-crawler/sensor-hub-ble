@@ -57,7 +57,7 @@ pub(crate) static SPI_EXPANDER_EVENTS: Channel<
     10,
 > = Channel::new();
 
-pub(crate) static SPI_EXPANDER_LOCK_OWNER: Mutex<ThreadModeRawMutex, Option<(Instant, Connection)>> = Mutex::new(None);
+pub(crate) static SPI_EXPANDER_LOCK_OWNER: Mutex<ThreadModeRawMutex, Option<Connection>> = Mutex::new(None);
 
 pub(crate) static DEVICE_EVENT_PROCESSOR: EventProcessor<
     DiNotificationSettings,

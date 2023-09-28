@@ -1,4 +1,4 @@
-use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_EXPANDER_BUF_SIZE};
+use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_CONTROL_BYTES_SIZE};
 
 #[nrf_softdevice::gatt_service(uuid = "180A")]
 pub(crate) struct DeviceInformationService {
@@ -125,8 +125,29 @@ pub(crate) struct ColorService {
 
 #[nrf_softdevice::gatt_service(uuid = "ac866789-aaaa-eeee-a329-969d4bc8621e")]
 pub(crate) struct ExpanderService {
+    /// First byte is control bits
+    /// [lock_set, power_set, cs_set, command_set, address_set, size_read_set, size_write_set, mosi_set]
+    /// Second byte: reserved
+    /// [
+    ///     [0] control_bits,
+    ///     [1] reserved_control_bits,
+    ///     [2] lock_type,
+    ///     [3] power_on_off,
+    ///     [4] power_wait,
+    ///     [5] cs,
+    ///     [6] cs_wait,
+    ///     [7] command,
+    ///     [8] address,
+    ///     [9,10] [size_read, size_read],
+    ///     [11, 12] [size_write, size_write],
+    ///     [13] reserved,
+    ///     [14] reserved,
+    ///     [15] reserved,
+    ///     ..mosi
+    /// ]
+
     #[characteristic(uuid = "0000A001-0000-1000-8000-00805F9B34FB", write)]
-    pub(crate) mosi: [u8; BLE_EXPANDER_BUF_SIZE],
+    pub(crate) data_bundle: [u8; BLE_EXPANDER_BUF_SIZE + BLE_EXPANDER_CONTROL_BYTES_SIZE],
 
     #[characteristic(uuid = "0000A002-0000-1000-8000-00805F9B34FB", read)]
     pub(crate) miso: [u8; BLE_EXPANDER_BUF_SIZE],
@@ -135,34 +156,22 @@ pub(crate) struct ExpanderService {
     pub(crate) cs: u8,
 
     #[characteristic(uuid = "0000A004-0000-1000-8000-00805F9B34FB", write, read)]
-    pub(crate) command: u8,
-
-    #[characteristic(uuid = "0000A005-0000-1000-8000-00805F9B34FB", write, read)]
     pub(crate) lock: u8,
 
-    #[characteristic(uuid = "0000A006-0000-1000-8000-00805F9B34FB", write, read)]
+    #[characteristic(uuid = "0000A005-0000-1000-8000-00805F9B34FB", write, read)]
     pub(crate) power: u8,
 
-    #[characteristic(uuid = "0000A007-0000-1000-8000-00805F9B34FB", write, read)]
-    pub(crate) size: u16,
-
-    #[characteristic(uuid = "0000A008-0000-1000-8000-00805F9B34FB", write, read)]
-    pub(crate) address: u8,
-
-    #[characteristic(uuid = "0000A009-0000-1000-8000-00805F9B34FB", notify)]
+    #[characteristic(uuid = "0000A006-0000-1000-8000-00805F9B34FB", notify)]
     pub(crate) result: i8,
 }
 
 impl ExpanderServiceEvent {
     pub(crate) fn success_code(&self) -> i8 {
         match self {
-            ExpanderServiceEvent::MosiWrite(_) => 1,
-            ExpanderServiceEvent::CsWrite(_) => 3,
-            ExpanderServiceEvent::CommandWrite(_) => 4,
-            ExpanderServiceEvent::LockWrite(_) => 5,
-            ExpanderServiceEvent::PowerWrite(_) => 6,
-            ExpanderServiceEvent::SizeWrite(_) => 7,
-            ExpanderServiceEvent::AddressWrite(_) => 8,
+            ExpanderServiceEvent::DataBundleWrite(_) => 1,
+            ExpanderServiceEvent::CsWrite(_) => 2,
+            ExpanderServiceEvent::LockWrite(_) => 3,
+            ExpanderServiceEvent::PowerWrite(_) => 4,
             ExpanderServiceEvent::ResultCccdWrite { .. } => 0,
         }
     }
