@@ -82,6 +82,4 @@ pub enum CustomSpimError {
     #[error("SPI Error")]
     SpimError(#[from] spim::Error),
 
-    #[error("Bitbang SPI Error")]
-    BitbangSpimError(#[from] crate::common::bitbang::spi::SpiBbError),
 }

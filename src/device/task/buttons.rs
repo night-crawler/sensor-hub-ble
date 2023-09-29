@@ -11,17 +11,17 @@ use crate::common::device::ui::controls::{ButtonPosition, ButtonState, DisplayRe
 
 #[embassy_executor::task]
 pub(crate) async fn read_buttons(
-    pins: ButtonPins,
+    mut pins: ButtonPins,
 ) {
     select_biased! {
-        _ = read_button(&pins.top_left, ButtonPosition::TopLeft).fuse() => {}
-        _ = read_button(&pins.top_right, ButtonPosition::TopRight).fuse() => {}
-        _ = read_button(&pins.bottom_left, ButtonPosition::BottomLeft).fuse() => {}
+        _ = read_button(&mut pins.top_left, ButtonPosition::TopLeft).fuse() => {}
+        _ = read_button(&mut pins.top_right, ButtonPosition::TopRight).fuse() => {}
+        _ = read_button(&mut pins.bottom_left, ButtonPosition::BottomLeft).fuse() => {}
     }
 }
 
 
-async fn read_button(pin: &AnyPin, position: ButtonPosition) {
+async fn read_button(pin: &mut AnyPin, position: ButtonPosition) {
     let mut input = Input::new(pin, Pull::Down);
     loop {
         input.wait_for_high().await;
@@ -58,7 +58,7 @@ const FULL_REFRESH_STATE: ButtonState = ButtonState {
 #[embassy_executor::task]
 pub(crate) async fn read_button_events() {
     loop {
-        let state = BUTTON_EVENTS.recv().await;
+        let state = BUTTON_EVENTS.receive().await;
         info!("Button event: {:?}", state);
 
         if state == PARTIAL_REFRESH_STATE {

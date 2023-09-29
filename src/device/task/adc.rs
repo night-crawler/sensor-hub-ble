@@ -1,4 +1,5 @@
 use core::mem;
+use core::ops::DerefMut;
 use defmt::info;
 
 use embassy_nrf::{peripherals, saadc};
@@ -28,15 +29,16 @@ pub(crate) async fn read_saadc_battery_voltage_task(
         // taking just battery pin does not work; on the second time initialization SAADC
         // ignores sample_counter from the current run
         let (measurements, _, _) = {
-            let saadc_pins = saadc_pins.lock().await;
+            let mut saadc_pins = saadc_pins.lock().await;
+            let mut saadc_pins = saadc_pins.deref_mut();
             let mut bat_switch = Output::new(
-                &saadc_pins.bat_switch, Level::High, OutputDrive::Standard,
+                &mut saadc_pins.bat_switch, Level::High, OutputDrive::Standard,
             );
             bat_switch.set_high();
             Timer::after(Duration::from_millis(10)).await;
 
             let sample_counter = 600;
-            let measurements = measure::<8, 10>(&saadc_pins.pins, &saadc_pins.adc, 1000, sample_counter)
+            let measurements = measure::<8, 10>(&mut saadc_pins.pins, &mut saadc_pins.adc, 1000, sample_counter)
                 .await
                 .unwrap();
 
@@ -70,9 +72,10 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
         let _token = ADC_EVENT_PROCESSOR.wait_for_condition().await;
 
         let (measurements, elapsed, count) = {
-            let saadc_pins = saadc_pins.lock().await;
+            let mut saadc_pins = saadc_pins.lock().await;
+            let saadc_pins = saadc_pins.deref_mut();
             let mut power_switch = Output::new(
-                &saadc_pins.pw_switch, Level::High, OutputDrive::Standard,
+                &mut saadc_pins.pw_switch, Level::High, OutputDrive::Standard,
             );
             power_switch.set_high();
             Timer::after(Duration::from_millis(10)).await;
@@ -102,7 +105,7 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
             // (now changed to 8)
             let mut sample_counter = 600;
             let measurements = loop {
-                match measure::<8, 10>(&saadc_pins.pins, &saadc_pins.adc, 1000, sample_counter)
+                match measure::<8, 10>(&mut saadc_pins.pins, &mut saadc_pins.adc, 1000, sample_counter)
                     .await
                 {
                     Ok(result) => {
@@ -149,8 +152,8 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
 }
 
 async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
-    pins: &[AnyInput; NUM_PINS],
-    saadc_peripheral: &peripherals::SAADC,
+    pins: &mut [AnyInput; NUM_PINS],
+    saadc_peripheral: &mut peripherals::SAADC,
     oversample: usize,
     mut sample_counter: u32,
 ) -> Result<([f32; NUM_PINS], Duration, usize), Duration> {
@@ -214,8 +217,8 @@ async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
 }
 
 fn init_adc<'a, const N: usize>(
-    pins: &'a [AnyInput; N],
-    adc: &'a peripherals::SAADC,
+    pins: &'a mut [AnyInput; N],
+    adc: &'a mut peripherals::SAADC,
 ) -> Saadc<'a, N> {
     let mut config = saadc::Config::default();
     config.oversample = Oversample::BYPASS;

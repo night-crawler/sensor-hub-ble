@@ -45,7 +45,7 @@ macro_rules! impl_read_event_channel {
             #[embassy_executor::task]
             pub(crate) async fn [<read_ $name _notification_settings_channel>]() {
                 loop {
-                    let (connection, settings) = $channel.recv().await;
+                    let (connection, settings) = $channel.receive().await;
                     $processor.process_event(connection, settings).await;
                 }
             }

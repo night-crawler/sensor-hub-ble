@@ -51,7 +51,7 @@ impl<const T: usize> Condition<T> {
     }
 
     pub async fn lock(&self) -> ConditionToken<T> {
-        self.channel.recv().await;
+        self.channel.receive().await;
         ConditionToken { condition: self }
     }
 }

@@ -61,7 +61,7 @@ pub(crate) async fn epd_task(
 
         select_biased! {
             _ = Timer::after(Duration::from_secs(300)).fuse() => {}
-            next_refresh_type = DISPLAY_REFRESH_EVENTS.recv().fuse() => {
+            next_refresh_type = DISPLAY_REFRESH_EVENTS.receive().fuse() => {
                 info!("Received refresh event: {:?}", next_refresh_type);
                 refresh_type = next_refresh_type;
                 is_forced = true;

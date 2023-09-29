@@ -31,7 +31,7 @@ pub(crate) async fn ble_debug_notify_task() {
     let server = SERVER.get();
 
     loop {
-        let (connection, message) = CHANNEL.recv().await;
+        let (connection, message) = CHANNEL.receive().await;
         if let Some(connection) = connection {
             let _ = SERVER.get().dis.debug_notify(&connection, &message);
         } else {

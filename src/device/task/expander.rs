@@ -29,7 +29,7 @@ pub(crate) async fn expander_task(
     pins: Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
 ) {
     loop {
-        let (connection, event) = SPI_EXPANDER_EVENTS.recv().await;
+        let (connection, event) = SPI_EXPANDER_EVENTS.receive().await;
 
         let mut expander_state = EXPANDER_STATE.lock().await;
         let expander_state = expander_state.deref_mut();
@@ -102,7 +102,7 @@ async fn handle_event(
             expander_state.flags.power = Some(on == 1);
 
             handle_power(&pins, expander_state.flags.power.unwrap()).await;
-            // info!("Expander power set to {}", on);
+            info!("Expander power set to {}", on);
             Ok(())
         }
         ExpanderServiceEvent::DataBundleWrite(data) => {
