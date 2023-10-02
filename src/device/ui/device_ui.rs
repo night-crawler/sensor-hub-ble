@@ -16,7 +16,6 @@ static VERTICAL_MARGIN: FixedMargin = FixedMargin(5);
 pub(crate) struct Ui<'a, D> where D: DrawTarget + OriginDimensions {
     display: &'a mut D,
     background_color: D::Color,
-    foreground_color: D::Color,
     text_style_bat: U8g2TextStyle<<D as DrawTarget>::Color>,
     text_style_small: U8g2TextStyle<<D as DrawTarget>::Color>,
     text_style_med: U8g2TextStyle<<D as DrawTarget>::Color>,
@@ -32,7 +31,6 @@ impl<'a, D> Ui<'a, D> where D: DrawTarget + OriginDimensions, UiError<<D as Draw
         Self {
             display,
             background_color,
-            foreground_color,
             text_style_bat: U8g2TextStyle::new(u8g2_fonts::fonts::u8g2_font_battery19_tn, foreground_color),
             text_style_small: U8g2TextStyle::new(u8g2_fonts::fonts::u8g2_font_guildenstern_nbp_tr, foreground_color),
             text_style_med: U8g2TextStyle::new(u8g2_fonts::fonts::u8g2_font_logisoso26_tr, foreground_color),

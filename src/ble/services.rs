@@ -175,10 +175,6 @@ impl ExpanderServiceEvent {
             ExpanderServiceEvent::ResultCccdWrite { .. } => 0,
         }
     }
-
-    pub(crate) fn error_code(&self) -> i8 {
-        -self.success_code()
-    }
 }
 
 #[nrf_softdevice::gatt_server]

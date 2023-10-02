@@ -46,7 +46,7 @@ pub fn ble_debug_push(connection: Option<Connection>, args: fmt::Arguments) -> R
     let mut w = WriteTo::new(&mut buf);
     fmt::write(&mut w, args)?;
     info!("ble_debug: {}", w.to_str().unwrap_or("invalid utf8"));
-    if let Err(err) = CHANNEL.try_send((connection, buf)) {
+    if let Err(_) = CHANNEL.try_send((connection, buf)) {
         info!("Failed to put debug message to the channel");
     }
     Ok(())

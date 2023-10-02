@@ -1,17 +1,17 @@
-use embassy_time::Duration;
-
-use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_CONTROL_BYTES_SIZE, BLE_EXPANDER_EXEC_TIMEOUT};
-use crate::common::device::error::ExpanderError;
-use crate::common::device::expander::command::Command;
-use futures::FutureExt;
-use futures::select_biased;
+use embassy_nrf::peripherals;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
-use rclite::Arc;
-use crate::common::device::device_manager::ExpanderPins;
-use embassy_nrf::peripherals;
-use crate::common::device::expander::{handle_i2c_exec, handle_spi_exec};
+use embassy_time::Duration;
 use embassy_time::Timer;
+use futures::FutureExt;
+use futures::select_biased;
+use rclite::Arc;
+
+use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_CONTROL_BYTES_SIZE, BLE_EXPANDER_EXEC_TIMEOUT};
+use crate::common::device::pin_manager::ExpanderPins;
+use crate::common::device::error::ExpanderError;
+use crate::common::device::expander::{handle_i2c_exec, handle_spi_exec};
+use crate::common::device::expander::command::Command;
 
 #[derive(Debug, defmt::Format, Copy, Clone)]
 pub(crate) enum ExpanderType {
@@ -50,6 +50,23 @@ pub(crate) struct ExpanderFlags {
 impl TryFrom<&[u8]> for ExpanderFlags {
     type Error = ExpanderError;
 
+    /// [
+    ///     [0] control_bits,
+    ///     [1] reserved_control_bits,
+    ///     [2] lock_type,
+    ///     [3] power_on_off,
+    ///     [4] power_wait,
+    ///     [5] cs,
+    ///     [6] cs_wait,
+    ///     [7] command,
+    ///     [8] address,
+    ///     [9,10] [size_read, size_read],
+    ///     [11, 12] [size_write, size_write],
+    ///     [13] reserved,
+    ///     [14] reserved,
+    ///     [15] reserved,
+    ///     ..mosi
+    /// ]
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let has_lock = value[0] & 0b1000_0000 != 0;
         let has_power = value[0] & 0b0100_0000 != 0;
@@ -60,23 +77,6 @@ impl TryFrom<&[u8]> for ExpanderFlags {
         let has_size_write = value[0] & 0b0000_0010 != 0;
         let has_mosi = value[0] & 0b0000_0001 != 0;
 
-        /// [
-        ///     [0] control_bits,
-        ///     [1] reserved_control_bits,
-        ///     [2] lock_type,
-        ///     [3] power_on_off,
-        ///     [4] power_wait,
-        ///     [5] cs,
-        ///     [6] cs_wait,
-        ///     [7] command,
-        ///     [8] address,
-        ///     [9,10] [size_read, size_read],
-        ///     [11, 12] [size_write, size_write],
-        ///     [13] reserved,
-        ///     [14] reserved,
-        ///     [15] reserved,
-        ///     ..mosi
-        /// ]
 
         let mut instance = Self {
             power_wait_duration: Duration::from_millis((value[4] as u64) * 10),
@@ -91,8 +91,13 @@ impl TryFrom<&[u8]> for ExpanderFlags {
             instance.power = Some(value[3] != 0);
         }
         if has_cs {
-            instance.cs = Some(value[5]);
+            let cs = value[5];
+            if cs > 7 {
+                return Err(ExpanderError::InvalidCs(cs));
+            }
+            instance.cs = Some(cs);
         }
+
         if has_command {
             instance.command = Some(Command::try_from(value[7])?);
         }
@@ -100,10 +105,18 @@ impl TryFrom<&[u8]> for ExpanderFlags {
             instance.address = Some(value[8]);
         }
         if has_size_read {
-            instance.size_read = Some(u16::from_le_bytes([value[9], value[10]]) as usize);
+            let size = u16::from_le_bytes([value[9], value[10]]);
+            if size > BLE_EXPANDER_BUF_SIZE as u16 {
+                return Err(ExpanderError::InvalidSizeRead(size));
+            }
+            instance.size_read = Some(size as usize);
         }
         if has_size_write {
-            instance.size_write = Some(u16::from_le_bytes([value[11], value[12]]) as usize);
+            let size = u16::from_le_bytes([value[11], value[12]]);
+            if size > BLE_EXPANDER_BUF_SIZE as u16 {
+                return Err(ExpanderError::InvalidSizeWrite(size));
+            }
+            instance.size_write = Some(size as usize);
         }
 
         instance.has_mosi = has_mosi;

@@ -18,9 +18,6 @@ pub enum DeviceError {
 
     #[error("Send debug error")]
     SendDebugError(#[from] TrySendError<[u8; BLE_DEBUG_ARRAY_LEN]>),
-
-    #[error("Invalid CS: {0}")]
-    InvalidCs(u8),
 }
 
 #[derive(Error, Debug)]
@@ -36,9 +33,6 @@ pub(crate) enum ExpanderError {
 
     #[error("Mutex not locked")]
     MutexNotLocked,
-
-    #[error("Mutex Timeout")]
-    MutexTimeout,
 
     #[error("Mutex locked twice by same client")]
     MutexAcquireTwiceSameClient,
@@ -66,6 +60,12 @@ pub(crate) enum ExpanderError {
 
     #[error("Invalid CS {0}")]
     InvalidCs(u8),
+
+    #[error("Invalid size read: {0}")]
+    InvalidSizeRead(u16),
+
+    #[error("Invalid size write: {0}")]
+    InvalidSizeWrite(u16),
 
     #[error("Incomplete data")]
     IncompleteData,

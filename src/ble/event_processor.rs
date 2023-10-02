@@ -132,11 +132,6 @@ where
     pub(crate) async fn get_connection_settings(&self, connection: &Connection) -> Option<S> {
         self.notification_settings.lock().await.get(connection).cloned()
     }
-
-    pub(crate) async fn enabled_on_any_connection(&self, predicate: impl Fn(&S) -> bool) -> bool {
-        let settings_map = self.notification_settings.lock().await;
-        Connection::iter().filter_map(|connection| settings_map.get(&connection)).any(predicate)
-    }
 }
 
 impl_settings_event_consumer!(

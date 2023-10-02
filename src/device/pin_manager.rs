@@ -1,5 +1,4 @@
 use defmt::info;
-use embassy_executor::Spawner;
 use embassy_nrf::{bind_interrupts, peripherals, Peripherals, saadc};
 use embassy_nrf::config::{HfclkSource, LfclkSource};
 use embassy_nrf::gpio::{AnyPin, Level, Output, OutputDrive, Pin};
@@ -89,7 +88,7 @@ pub(crate) struct EpdControlPins {
     pub(crate) rst: AnyPin,
 }
 
-pub(crate) struct DeviceManager {
+pub(crate) struct PinManager {
     pub(crate) saadc_pins: Arc<Mutex<ThreadModeRawMutex, SaadcPins<8>>>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
     pub(crate) spi2_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
@@ -113,8 +112,8 @@ fn prepare_nrf_peripherals() -> Peripherals {
     embassy_nrf::init(config)
 }
 
-impl DeviceManager {
-    pub(crate) async fn new(spawner: Spawner) -> Result<Self, DeviceError> {
+impl PinManager {
+    pub(crate) async fn new() -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
 
         // TWISPI0 is stolen

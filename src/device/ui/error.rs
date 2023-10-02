@@ -10,10 +10,12 @@ pub enum UiError<T> {
     #[error("Format error")]
     FmtError(#[from] fmt::Error),
 
+    // In case Display will return meaningful (not Infallible) error, it will be needed
+    #[allow(dead_code)]
     #[error("Display error {0}")]
     DisplayError(T),
 
-    #[error("Qwe")]
+    #[error("Infallible")]
     Infallible(#[from] Infallible),
 
     #[error("Spim")]
@@ -23,7 +25,7 @@ pub enum UiError<T> {
 impl<T> defmt::Format for UiError<T> where T: defmt::Format {
     fn format(&self, fmt: Formatter) {
         match self {
-            UiError::FmtError(err) => defmt::write!(fmt, "Formatting error"),
+            UiError::FmtError(_) => defmt::write!(fmt, "Formatting error"),
             UiError::DisplayError(err) => defmt::write!(fmt, "Display error: {}", err),
             UiError::Infallible(err) => defmt::write!(fmt, "Formatting error: {}", err),
             UiError::Spim(err) => defmt::write!(fmt, "spim error: {}", err),

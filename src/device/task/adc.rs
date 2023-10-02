@@ -1,6 +1,5 @@
 use core::mem;
 use core::ops::DerefMut;
-use defmt::info;
 
 use embassy_nrf::{peripherals, saadc};
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
@@ -13,7 +12,7 @@ use rclite::Arc;
 
 use crate::common::ble::{ADC_EVENT_PROCESSOR, DEVICE_EVENT_PROCESSOR, SERVER};
 use crate::common::ble::conv::ConvExt;
-use crate::common::device::device_manager::{Irqs, SaadcPins};
+use crate::common::device::pin_manager::{Irqs, SaadcPins};
 use crate::common::device::ui::UI_STORE;
 use crate::notify_all;
 
@@ -30,7 +29,7 @@ pub(crate) async fn read_saadc_battery_voltage_task(
         // ignores sample_counter from the current run
         let (measurements, _, _) = {
             let mut saadc_pins = saadc_pins.lock().await;
-            let mut saadc_pins = saadc_pins.deref_mut();
+            let saadc_pins = saadc_pins.deref_mut();
             let mut bat_switch = Output::new(
                 &mut saadc_pins.bat_switch, Level::High, OutputDrive::Standard,
             );

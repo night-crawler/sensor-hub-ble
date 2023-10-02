@@ -31,7 +31,7 @@ use crate::common::ble::event_processor::{
 };
 use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::device::device_manager::DeviceManager;
+use crate::common::device::pin_manager::PinManager;
 use crate::common::device::expander::{handle_expander_disconnect, TIMEOUT_TRACKER};
 use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saadc_task};
 use crate::common::device::task::buttons::{read_button_events, read_buttons};
@@ -39,7 +39,6 @@ use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::nrf_temp::notify_nrf_temp;
 use crate::common::device::task::spi::epd_task;
 use crate::common::device::task::expander::{expander_task, expander_mutex_timeout_task};
-use crate::common::device::task::expander;
 use crate::common::device::ui::UI_STORE;
 
 #[path = "../common.rs"]
@@ -62,7 +61,7 @@ async fn main(spawner: Spawner) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    let device_manager = DeviceManager::new(spawner).await.unwrap();
+    let device_manager = PinManager::new().await.unwrap();
     let sd_config = prepare_softdevice_config();
     let sd = Softdevice::enable(&sd_config);
     let server = unwrap!(BleServer::new(sd));

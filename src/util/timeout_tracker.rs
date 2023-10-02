@@ -1,5 +1,4 @@
 use alloc::collections::BTreeMap;
-use defmt::info;
 
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;

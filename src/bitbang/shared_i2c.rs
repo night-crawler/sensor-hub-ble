@@ -13,7 +13,7 @@ use futures::FutureExt;
 use futures::select_biased;
 
 use crate::common::bitbang::i2c::BitbangI2CError;
-use crate::common::device::device_manager::{BitbangI2CPins, Irqs};
+use crate::common::device::pin_manager::{BitbangI2CPins, Irqs};
 
 pub(crate) struct SharedBitbangI2cPins<'a> {
     pins: &'a Mutex<ThreadModeRawMutex, BitbangI2CPins>,

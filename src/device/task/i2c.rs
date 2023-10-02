@@ -14,7 +14,7 @@ use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::BleServer;
 use crate::common::device::{bme280, veml6040};
 use crate::common::device::bme280::{BME280_SLEEP_MODE, Bme280Error};
-use crate::common::device::device_manager::BitbangI2CPins;
+use crate::common::device::pin_manager::BitbangI2CPins;
 use crate::common::device::lis2dh12::{Lis2dh12, SlaveAddr};
 use crate::common::device::lis2dh12::reg::{FifoMode, FullScale, Odr};
 use crate::common::device::ui::UI_STORE;

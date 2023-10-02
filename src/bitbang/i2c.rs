@@ -46,6 +46,7 @@ where
     SCL: GpioPin + 'd,
     SDA: GpioPin + 'd,
 {
+    #[allow(dead_code)]
     pub fn new(scl: Output<'d, SCL>, sda: Flex<'d, SDA>, config: Config) -> Self {
         Self { scl, sda, config }
     }

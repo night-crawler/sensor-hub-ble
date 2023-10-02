@@ -1,7 +1,6 @@
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
-use embassy_time::Instant;
 use nrf_softdevice::ble::Connection;
 
 use crate::common::ble::event_processor::{

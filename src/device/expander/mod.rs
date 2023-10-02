@@ -10,12 +10,11 @@ use rclite::Arc;
 
 use crate::common::ble::SPI_EXPANDER_LOCK_OWNER;
 use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_LOCK_TIMEOUT};
-use crate::common::device::device_manager::{ExpanderPins, Irqs};
+use crate::common::device::pin_manager::{ExpanderPins, Irqs};
 use crate::common::device::error::ExpanderError;
 use crate::common::device::expander::command::Command;
 use crate::common::device::expander::expander_state::{ExpanderState, ExpanderType};
 use crate::common::device::expander::ext::Expander;
-use crate::common::util::ble_debugger::ConnectionDebug;
 use crate::common::util::timeout_tracker::TimeoutTracker;
 
 pub(crate) mod expander_state;
@@ -26,7 +25,6 @@ pub(crate) mod ext;
 pub(crate) static EXPANDER_STATE: Mutex<ThreadModeRawMutex, Option<ExpanderState>> = Mutex::new(None);
 
 pub(crate) static TIMEOUT_TRACKER: TimeoutTracker<Connection> = TimeoutTracker::new(BLE_EXPANDER_LOCK_TIMEOUT);
-
 
 
 pub(crate) async fn authenticate(connection: &Connection) -> Result<(), ExpanderError> {
