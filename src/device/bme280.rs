@@ -345,7 +345,7 @@ impl Configuration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, defmt::Format)]
 pub struct Measurements {
     /// temperature in degrees celsius
     pub temperature: f32,

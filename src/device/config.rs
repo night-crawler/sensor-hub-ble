@@ -1,4 +1,5 @@
 use embassy_time::Duration;
+use nrf_softdevice::Flash;
 
 pub(crate) const NUM_CONNECTIONS: usize = 3;
 
@@ -14,3 +15,7 @@ pub(crate) const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(50);
 
 // Color sensor oversampling takes a lot of time
 pub(crate) const ALL_TASK_COMPLETION_INTERVAL: Duration = Duration::from_millis(3000);
+
+pub(crate) const FLASH_PAGE_SIZE: usize = 4096;
+pub(crate) const CONFIG_FLASH_SIZE: usize = FLASH_PAGE_SIZE - 4;
+pub(crate) const INIT_TOKEN: [u8; 4] = [0xBB, 0x3D, 0x12, 0x3A];

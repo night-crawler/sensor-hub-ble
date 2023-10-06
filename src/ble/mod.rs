@@ -9,6 +9,7 @@ use crate::common::ble::event_processor::{
 };
 use crate::common::ble::services::{AccelerometerServiceEvent, AdcServiceEvent, BleServer, Bme280ServiceEvent, ColorServiceEvent, DeviceInformationServiceEvent, ExpanderServiceEvent};
 use crate::common::device::config::NUM_CONNECTIONS;
+use crate::common::device::persistence::flash_manager::FlashManager;
 use crate::common::util::custom_static_cell::CustomStaticCell;
 
 pub(crate) mod conv;
@@ -19,6 +20,7 @@ pub(crate) mod softdevice;
 pub(crate) mod traits;
 
 pub(crate) static SERVER: CustomStaticCell<BleServer> = CustomStaticCell::new();
+pub(crate) static FLASH_MANAGER: CustomStaticCell<FlashManager> = CustomStaticCell::new();
 
 pub(crate) static ADC_SERVICE_EVENTS: Channel<
     ThreadModeRawMutex,

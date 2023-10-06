@@ -10,7 +10,7 @@ use rclite::Arc;
 
 use crate::common::ble::SPI_EXPANDER_LOCK_OWNER;
 use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_LOCK_TIMEOUT};
-use crate::common::device::pin_manager::{ExpanderPins, Irqs};
+use crate::common::device::peripherals_manager::{ExpanderPins, Irqs};
 use crate::common::device::error::ExpanderError;
 use crate::common::device::expander::command::Command;
 use crate::common::device::expander::expander_state::{ExpanderState, ExpanderType};

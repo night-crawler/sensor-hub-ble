@@ -10,7 +10,7 @@ use rclite::Arc;
 
 use crate::common::ble::{SERVER, SPI_EXPANDER_EVENTS};
 use crate::common::ble::services::ExpanderServiceEvent;
-use crate::common::device::pin_manager::ExpanderPins;
+use crate::common::device::peripherals_manager::ExpanderPins;
 use crate::common::device::error::ExpanderError;
 use crate::common::device::expander::{authenticate, EXPANDER_STATE, handle_expander_disconnect, handle_mutex_acquire_release, handle_power, handle_set_cs, TIMEOUT_TRACKER};
 use crate::common::device::expander::expander_state::{ExpanderFlags, ExpanderState, ExpanderType};

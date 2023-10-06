@@ -5,7 +5,7 @@ use embassy_time::Timer;
 use futures::{FutureExt, select_biased};
 
 use crate::common::device::config::DEBOUNCE_INTERVAL;
-use crate::common::device::pin_manager::ButtonPins;
+use crate::common::device::peripherals_manager::ButtonPins;
 use crate::common::device::ui::{BUTTON_EVENTS, BUTTON_STATE, DISPLAY_REFRESH_EVENTS};
 use crate::common::device::ui::controls::{ButtonPosition, ButtonState, DisplayRefreshType, PressState};
 

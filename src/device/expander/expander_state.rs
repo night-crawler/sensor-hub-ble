@@ -8,7 +8,7 @@ use futures::select_biased;
 use rclite::Arc;
 
 use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_CONTROL_BYTES_SIZE, BLE_EXPANDER_EXEC_TIMEOUT};
-use crate::common::device::pin_manager::ExpanderPins;
+use crate::common::device::peripherals_manager::ExpanderPins;
 use crate::common::device::error::ExpanderError;
 use crate::common::device::expander::{handle_i2c_exec, handle_spi_exec};
 use crate::common::device::expander::command::Command;

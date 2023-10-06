@@ -61,6 +61,21 @@ pub(crate) struct Bme280Service {
 
     #[characteristic(uuid = "a0e4a2ba-0000-8000-0000-00805f9b34fb", read, write, notify)]
     pub(crate) timeout: u32,
+
+    // if it's represented as f32 and you write to it from a client, there's a
+    // stack backtrace:
+    //    0: HardFaultTrampoline
+    //       <exception entry>
+    //   (HOST) WARN  call stack was corrupted; unwinding could not be completed
+    //   (HOST) ERROR the program panicked
+    #[characteristic(uuid = "a0e4a2ba-1234-4321-0001-00805f9b34fb", read, write, notify)]
+    pub(crate) humidity_offset: [u8; 4],
+
+    #[characteristic(uuid = "a0e4a2ba-1234-4321-0002-00805f9b34fb", read, write, notify)]
+    pub(crate) temperature_offset: [u8; 4],
+
+    #[characteristic(uuid = "a0e4a2ba-1234-4321-0003-00805f9b34fb", read, write, notify)]
+    pub(crate) pressure_offset: [u8; 4],
 }
 
 #[nrf_softdevice::gatt_service(uuid = "5c853275-823b-4754-a329-969d4bc8121e")]

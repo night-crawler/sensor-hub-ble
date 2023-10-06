@@ -88,7 +88,7 @@ pub(crate) struct EpdControlPins {
     pub(crate) rst: AnyPin,
 }
 
-pub(crate) struct PinManager {
+pub(crate) struct PeripheralsManager {
     pub(crate) saadc_pins: Arc<Mutex<ThreadModeRawMutex, SaadcPins<8>>>,
     // pub(crate) i2c0: I2CPins<TWISPI0>,
     pub(crate) spi2_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<peripherals::SPI2>>>,
@@ -112,7 +112,7 @@ fn prepare_nrf_peripherals() -> Peripherals {
     embassy_nrf::init(config)
 }
 
-impl PinManager {
+impl PeripheralsManager {
     pub(crate) async fn new() -> Result<Self, DeviceError> {
         let board = prepare_nrf_peripherals();
 

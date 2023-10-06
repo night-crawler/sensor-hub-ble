@@ -74,7 +74,7 @@ macro_rules! impl_settings_event_consumer {
         $settings_type:ty, $event_type:ty,  $($field:ident),+
     ) => {
         impl SettingsEventConsumer<$event_type> for $settings_type {
-            fn consume(&mut self, event: $event_type) {
+            async fn consume(&mut self, event: $event_type) {
                 impl_set_notification!(
                     $event_type,
                     event,

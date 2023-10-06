@@ -15,8 +15,8 @@ use spim::Spim;
 use crate::common::ble::trigger_all_sensor_update;
 use crate::common::device::config::ALL_TASK_COMPLETION_INTERVAL;
 
-use crate::common::device::pin_manager::{EpdControlPins, SpiTxPins};
-use crate::common::device::pin_manager::Irqs;
+use crate::common::device::peripherals_manager::{EpdControlPins, SpiTxPins};
+use crate::common::device::peripherals_manager::Irqs;
 use crate::common::device::epd::{Display2in13, Epd2in13};
 use crate::common::device::epd::color::Color;
 use crate::common::device::epd::epd_controls::EpdControls;

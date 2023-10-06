@@ -12,7 +12,7 @@ use rclite::Arc;
 
 use crate::common::ble::{ADC_EVENT_PROCESSOR, DEVICE_EVENT_PROCESSOR, SERVER};
 use crate::common::ble::conv::ConvExt;
-use crate::common::device::pin_manager::{Irqs, SaadcPins};
+use crate::common::device::peripherals_manager::{Irqs, SaadcPins};
 use crate::common::device::ui::UI_STORE;
 use crate::notify_all;
 

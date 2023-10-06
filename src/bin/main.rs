@@ -15,6 +15,7 @@ use embassy_executor::Spawner;
 use embassy_nrf as _;
 use embedded_alloc::Heap;
 use nrf_softdevice::ble::{Connection, gatt_server, peripheral, TxPower};
+use nrf_softdevice::Flash;
 use nrf_softdevice::Softdevice;
 use nrf_softdevice_s140::ble_gap_conn_params_t;
 #[allow(unused)]
@@ -23,22 +24,37 @@ use rclite::Arc;
 
 use common::util::ble_debugger::ble_debug_notify_task;
 
-use crate::common::ble::{ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR, ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR, COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS, SERVER, SPI_EXPANDER_EVENTS};
+use crate::common::ble::{
+    ACCELEROMETER_EVENT_PROCESSOR,
+    ACCELEROMETER_SERVICE_EVENTS,
+    ADC_EVENT_PROCESSOR,
+    ADC_SERVICE_EVENTS,
+    BME_EVENT_PROCESSOR,
+    BME_SERVICE_EVENTS,
+    COLOR_EVENT_PROCESSOR,
+    COLOR_SERVICE_EVENTS,
+    DEVICE_EVENT_PROCESSOR,
+    DI_SERVICE_EVENTS,
+    FLASH_MANAGER,
+    SERVER,
+    SPI_EXPANDER_EVENTS
+};
 use crate::common::ble::event_processor::{
     read_accelerometer_notification_settings_channel, read_adc_notification_settings_channel,
     read_bme_notification_settings_channel, read_color_notification_settings_channel,
     read_di_notification_settings_channel,
 };
-use crate::common::ble::services::{BleServer, BleServerEvent};
+use crate::common::ble::services::{BleServer, BleServerEvent, Bme280ServiceEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
-use crate::common::device::pin_manager::PinManager;
+use crate::common::device::persistence::flash_manager::{copy_calibration_data_from_flash, FlashManager};
 use crate::common::device::expander::{handle_expander_disconnect, TIMEOUT_TRACKER};
+use crate::common::device::peripherals_manager::PeripheralsManager;
 use crate::common::device::task::adc::{read_saadc_battery_voltage_task, read_saadc_task};
 use crate::common::device::task::buttons::{read_button_events, read_buttons};
+use crate::common::device::task::expander::{expander_mutex_timeout_task, expander_task};
 use crate::common::device::task::i2c::read_i2c0_task;
 use crate::common::device::task::nrf_temp::notify_nrf_temp;
 use crate::common::device::task::spi::epd_task;
-use crate::common::device::task::expander::{expander_task, expander_mutex_timeout_task};
 use crate::common::device::ui::UI_STORE;
 
 #[path = "../common.rs"]
@@ -61,28 +77,36 @@ async fn main(spawner: Spawner) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    let device_manager = PinManager::new().await.unwrap();
+    let peripherals_manager = PeripheralsManager::new().await.unwrap();
     let sd_config = prepare_softdevice_config();
     let sd = Softdevice::enable(&sd_config);
     let server = unwrap!(BleServer::new(sd));
 
     SERVER.init_ro(server);
+    unwrap!(spawner.spawn(softdevice_task(sd)));
+    FLASH_MANAGER.init_ro(FlashManager::new(Flash::take(sd)));
+    if let Err(err) = FLASH_MANAGER.get().init().await {
+        info!("Failed to init flash manager {:?}", err);
+    } else if copy_calibration_data_from_flash().await.is_err() {
+        info!("Failed to copy calibration data from flash");
+    }
 
-    unwrap!(spawner.spawn(expander_task(Arc::clone(&device_manager.expander_pins))));
-    unwrap!(spawner.spawn(expander_mutex_timeout_task(Arc::clone(&device_manager.expander_pins))));
+    unwrap!(spawner.spawn(expander_task(Arc::clone(&peripherals_manager.expander_pins))));
+    unwrap!(spawner.spawn(expander_mutex_timeout_task(Arc::clone(&peripherals_manager.expander_pins))));
 
     unwrap!(spawner.spawn(epd_task(
-        Arc::clone(&device_manager.spi2_pins),
-        Arc::clone(&device_manager.epd_control_pins)
+        Arc::clone(&peripherals_manager.spi2_pins),
+        Arc::clone(&peripherals_manager.epd_control_pins)
     )));
 
-    unwrap!(spawner.spawn(read_buttons(device_manager.button_pins)));
+    unwrap!(spawner.spawn(read_buttons(peripherals_manager.button_pins)));
     unwrap!(spawner.spawn(read_button_events()));
-    unwrap!(spawner.spawn(read_saadc_battery_voltage_task(Arc::clone(&device_manager.saadc_pins))));
-    unwrap!(spawner.spawn(read_saadc_task(Arc::clone(&device_manager.saadc_pins))));
-    unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&device_manager.bbi2c0_pins))));
+    unwrap!(spawner.spawn(read_saadc_battery_voltage_task(Arc::clone(&peripherals_manager.saadc_pins))));
+    unwrap!(spawner.spawn(read_saadc_task(Arc::clone(&peripherals_manager.saadc_pins))));
+    unwrap!(spawner.spawn(read_i2c0_task(Arc::clone(&peripherals_manager.bbi2c0_pins))));
     unwrap!(spawner.spawn(ble_debug_notify_task()));
-    unwrap!(spawner.spawn(softdevice_task(sd)));
+
+
     unwrap!(spawner.spawn(notify_nrf_temp(sd)));
 
     unwrap!(spawner.spawn(read_adc_notification_settings_channel()));
@@ -121,7 +145,7 @@ async fn main(spawner: Spawner) {
         }
         unwrap!(spawner.spawn(handle_connection(connection.clone())));
 
-        handle_expander_disconnect(&connection, &device_manager.expander_pins).await;
+        handle_expander_disconnect(&connection, &peripherals_manager.expander_pins).await;
         TIMEOUT_TRACKER.stop_tracking(&connection).await;
         UI_STORE.lock().await.num_connections = Connection::iter().count() as u8
     }
@@ -149,6 +173,14 @@ async fn handle_connection(connection: Connection) {
             }
         }
         BleServerEvent::Bme280(event) => {
+            // match &event {
+            //     Bme280ServiceEvent::HumidityOffsetWrite(value) => {
+            //         let cd = FLASH_MANAGER.get().get_last_calibration_data().await;
+            //     }
+            //     Bme280ServiceEvent::TemperatureOffsetWrite(value) => {}
+            //     Bme280ServiceEvent::PressureOffsetWrite(value) => {},
+            //     _ => {}
+            // }
             if BME_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
                 ble_debug!("Failed to send BME service event")
             }

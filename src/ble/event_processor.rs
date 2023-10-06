@@ -7,6 +7,11 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::Duration;
 use nrf_softdevice::ble::Connection;
 
+use crate::{
+    impl_is_task_enabled, impl_read_event_channel, impl_set_notification,
+    impl_settings_event_consumer, impl_timeout_event_characteristic,
+};
+use crate::common::ble::{ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR, ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR, COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS, FLASH_MANAGER};
 use crate::common::ble::services::{
     AccelerometerServiceEvent, AdcServiceEvent, Bme280ServiceEvent, ColorServiceEvent,
     DeviceInformationServiceEvent,
@@ -14,16 +19,7 @@ use crate::common::ble::services::{
 use crate::common::ble::traits::{
     IsTaskEnabled, SettingsEventConsumer, TimeoutEventCharacteristic,
 };
-use crate::common::ble::{
-    ACCELEROMETER_EVENT_PROCESSOR, ACCELEROMETER_SERVICE_EVENTS, ADC_EVENT_PROCESSOR,
-    ADC_SERVICE_EVENTS, BME_EVENT_PROCESSOR, BME_SERVICE_EVENTS, COLOR_EVENT_PROCESSOR,
-    COLOR_SERVICE_EVENTS, DEVICE_EVENT_PROCESSOR, DI_SERVICE_EVENTS,
-};
 use crate::common::util::condition::{Condition, ConditionToken};
-use crate::{
-    impl_is_task_enabled, impl_read_event_channel, impl_set_notification,
-    impl_settings_event_consumer, impl_timeout_event_characteristic,
-};
 
 #[derive(Default, Clone)]
 pub(crate) struct AccelerometerNotificationSettings {
@@ -77,9 +73,9 @@ pub(crate) struct EventProcessor<S, E, const T: usize> {
 }
 
 impl<S, E, const T: usize> EventProcessor<S, E, T>
-where
-    S: Default + SettingsEventConsumer<E> + IsTaskEnabled + Clone,
-    E: TimeoutEventCharacteristic,
+    where
+        S: Default + SettingsEventConsumer<E> + IsTaskEnabled + Clone,
+        E: TimeoutEventCharacteristic,
 {
     pub(crate) const fn new() -> Self {
         Self {
@@ -97,7 +93,7 @@ where
 
         let mut settings_map = self.notification_settings.lock().await;
         let settings = settings_map.entry(connection).or_default();
-        settings.consume(event);
+        settings.consume(event).await;
 
         self.set_task_enabled_state(&settings_map);
     }
@@ -166,14 +162,44 @@ impl_settings_event_consumer!(
     Lux,
     Cct
 );
+impl SettingsEventConsumer<Bme280ServiceEvent> for BmeNotificationSettings {
+    async fn consume(&mut self, event: Bme280ServiceEvent) {
+        let mut next_calibration_data = match event {
+            Bme280ServiceEvent::TemperatureCccdWrite { notifications } => {
+                self.temperature = notifications;
+                return;
+            }
+            Bme280ServiceEvent::HumidityCccdWrite { notifications } => {
+                self.humidity = notifications;
+                return;
+            }
+            Bme280ServiceEvent::PressureCccdWrite { notifications } => {
+                self.pressure = notifications;
+                return;
+            }
+            Bme280ServiceEvent::HumidityOffsetWrite(value) => {
+                let mut data = FLASH_MANAGER.get().get_last_calibration_data().await;
+                data.bme_humidity = f32::from_le_bytes(value);
+                data
+            }
+            Bme280ServiceEvent::TemperatureOffsetWrite(value) => {
+                let mut data = FLASH_MANAGER.get().get_last_calibration_data().await;
+                data.bme_temperature = f32::from_le_bytes(value);
+                data
+            }
+            Bme280ServiceEvent::PressureOffsetWrite(value) => {
+                let mut data = FLASH_MANAGER.get().get_last_calibration_data().await;
+                data.bme_pressure = f32::from_le_bytes(value);
+                data
+            }
+            _ => return
+        };
 
-impl_settings_event_consumer!(
-    BmeNotificationSettings,
-    Bme280ServiceEvent,
-    Temperature,
-    Humidity,
-    Pressure
-);
+        next_calibration_data.version += 1;
+
+        let _ = FLASH_MANAGER.get().write_calibration_data(&next_calibration_data).await;
+    }
+}
 
 impl_settings_event_consumer!(
     DiNotificationSettings,

@@ -1141,6 +1141,7 @@ dependencies = [
  "embedded-graphics-core",
  "embedded-hal-async",
  "embedded-layout",
+ "embedded-storage-async",
  "fixed",
  "futures",
  "heapless",

@@ -1,6 +1,6 @@
 use core::fmt;
 
-use defmt::error;
+use defmt::{error, Formatter};
 use embassy_nrf::{spim, twim};
 use embassy_sync::channel::TrySendError;
 use nrf_softdevice::ble::gatt_server;
@@ -10,7 +10,7 @@ use crate::common::device::config::BLE_DEBUG_ARRAY_LEN;
 
 #[derive(Error, Debug)]
 pub enum DeviceError {
-    #[error("Format error {0}")]
+    #[error("Format error")]
     FmtError(#[from] fmt::Error),
 
     #[error("Spawn error")]
@@ -18,7 +18,23 @@ pub enum DeviceError {
 
     #[error("Send debug error")]
     SendDebugError(#[from] TrySendError<[u8; BLE_DEBUG_ARRAY_LEN]>),
+
+    #[error("Flash error {0}")]
+    Flash(#[from] FlashManagerError),
+
+    #[error("GATT SetValueError")]
+    SetValueError(#[from] gatt_server::SetValueError),
 }
+
+#[derive(Error, Debug, defmt::Format)]
+pub enum FlashManagerError {
+    #[error("Flash Error: {0:?}")]
+    FlashError(#[from] nrf_softdevice::FlashError),
+
+    #[error("Race condition: {0}, {1}")]
+    RaceCondition(usize, usize),
+}
+
 
 #[derive(Error, Debug)]
 pub enum CustomI2CError {
@@ -75,11 +91,4 @@ pub(crate) enum ExpanderError {
 
     #[error("Timeout")]
     Timeout,
-}
-
-#[derive(Error, Debug, defmt::Format)]
-pub enum CustomSpimError {
-    #[error("SPI Error")]
-    SpimError(#[from] spim::Error),
-
 }
