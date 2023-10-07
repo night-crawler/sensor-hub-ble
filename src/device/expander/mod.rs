@@ -1,20 +1,25 @@
 use core::ops::DerefMut;
 
+use defmt::info;
 use embassy_nrf::{peripherals, spim, twim};
 use embassy_nrf::spim::Spim;
 use embassy_nrf::twim::Twim;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
+use embassy_time::Duration;
+use embassy_time::Timer;
+use futures::FutureExt;
+use futures::select_biased;
 use nrf_softdevice::ble::Connection;
 use rclite::Arc;
 
 use crate::common::ble::SPI_EXPANDER_LOCK_OWNER;
 use crate::common::device::config::{BLE_EXPANDER_BUF_SIZE, BLE_EXPANDER_LOCK_TIMEOUT};
-use crate::common::device::peripherals_manager::{ExpanderPins, Irqs};
 use crate::common::device::error::ExpanderError;
 use crate::common::device::expander::command::Command;
 use crate::common::device::expander::expander_state::{ExpanderState, ExpanderType};
 use crate::common::device::expander::ext::Expander;
+use crate::common::device::peripherals_manager::{ExpanderPins, Irqs};
 use crate::common::util::timeout_tracker::TimeoutTracker;
 
 pub(crate) mod expander_state;
@@ -133,6 +138,9 @@ pub(crate) async fn handle_spi_exec(
             spi.transfer(&mut read_buf[..write_buf.len()], write_buf).await?;
             Ok(Some(read_buf))
         }
+        Command::I2cScan => {
+            Err(ExpanderError::InvalidCommand(command as u8))
+        }
     }
 }
 
@@ -142,7 +150,7 @@ pub(crate) async fn handle_i2c_exec(
     address: u8,
     command: Command,
     write_buf: &[u8],
-    size_read: usize
+    size_read: usize,
 ) -> Result<Option<[u8; BLE_EXPANDER_BUF_SIZE]>, ExpanderError> {
     let mut pins = pins.lock().await;
     let pins = pins.deref_mut();
@@ -171,6 +179,9 @@ pub(crate) async fn handle_i2c_exec(
             i2c.write_read(address, write_buf, &mut read_buf[..size_read]).await?;
             Ok(Some(read_buf))
         }
+        Command::I2cScan => {
+            handle_i2c_scan(i2c).await
+        }
     }
 }
 
@@ -188,4 +199,28 @@ pub(crate) async fn handle_expander_disconnect(
             handle_set_cs(pins, 0).await;
         }
     }
+}
+
+pub(crate) async fn handle_i2c_scan<T>(
+    mut i2c: Twim<'_, T>
+) -> Result<Option<[u8; BLE_EXPANDER_BUF_SIZE]>, ExpanderError> where T: twim::Instance {
+    let mut result = [0u8; BLE_EXPANDER_BUF_SIZE];
+    let mut pointer = 0;
+
+    for address in 1..=127 {
+        let response = select_biased! {
+            response = i2c.write(address, &[]).fuse() => response,
+            _ = Timer::after(Duration::from_millis(10)).fuse() => {
+                info!("I2C scan timeout for address {}", address);
+                continue;
+            }
+        };
+
+        if response.is_ok() {
+            result[pointer] = address;
+            pointer += 1;
+        }
+    }
+
+    Ok(Some(result))
 }

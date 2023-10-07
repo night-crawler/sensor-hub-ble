@@ -44,7 +44,7 @@ use crate::common::ble::event_processor::{
     read_bme_notification_settings_channel, read_color_notification_settings_channel,
     read_di_notification_settings_channel,
 };
-use crate::common::ble::services::{BleServer, BleServerEvent, Bme280ServiceEvent};
+use crate::common::ble::services::{BleServer, BleServerEvent};
 use crate::common::ble::softdevice::{prepare_adv_scan_data, prepare_softdevice_config};
 use crate::common::device::persistence::flash_manager::{copy_calibration_data_from_flash, FlashManager};
 use crate::common::device::expander::{handle_expander_disconnect, TIMEOUT_TRACKER};
@@ -173,14 +173,6 @@ async fn handle_connection(connection: Connection) {
             }
         }
         BleServerEvent::Bme280(event) => {
-            // match &event {
-            //     Bme280ServiceEvent::HumidityOffsetWrite(value) => {
-            //         let cd = FLASH_MANAGER.get().get_last_calibration_data().await;
-            //     }
-            //     Bme280ServiceEvent::TemperatureOffsetWrite(value) => {}
-            //     Bme280ServiceEvent::PressureOffsetWrite(value) => {},
-            //     _ => {}
-            // }
             if BME_SERVICE_EVENTS.try_send((connection.clone(), event)).is_err() {
                 ble_debug!("Failed to send BME service event")
             }

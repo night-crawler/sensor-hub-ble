@@ -76,7 +76,7 @@ async fn handle_event(
                         handle_set_cs(pins, 0).await;
                         // handle_expander_disconnect()
                     }
-                    ExpanderType::Spi | ExpanderType::I2c => {
+                    ExpanderType::Spi | ExpanderType::I2c  => {
                         TIMEOUT_TRACKER.register(connection.clone()).await
                     }
                 }
@@ -152,8 +152,6 @@ async fn handle_event(
                         expander_server.cs_set(&cs)?;
                     }
                     Timer::after(expander_state.flags.cs_wait_duration).await;
-
-                    // info!("Expander flags: {:?}", expander_state.flags);
 
                     if let Some(response_buf) = expander_state.exec(pins).await? {
                         expander_server.miso_set(&response_buf)?;

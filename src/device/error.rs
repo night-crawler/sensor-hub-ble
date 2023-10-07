@@ -1,6 +1,6 @@
 use core::fmt;
 
-use defmt::{error, Formatter};
+use defmt::error;
 use embassy_nrf::{spim, twim};
 use embassy_sync::channel::TrySendError;
 use nrf_softdevice::ble::gatt_server;

@@ -5,6 +5,7 @@ pub(crate) enum Command {
     Write,
     Read,
     Transfer,
+    I2cScan
 }
 
 impl TryFrom<u8> for Command {
@@ -15,6 +16,7 @@ impl TryFrom<u8> for Command {
             0x00 => Ok(Command::Write),
             0x01 => Ok(Command::Read),
             0x02 => Ok(Command::Transfer),
+            0x03 => Ok(Command::I2cScan),
             _ => Err(ExpanderError::InvalidCommand(value))
         }
     }

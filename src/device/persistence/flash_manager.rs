@@ -86,7 +86,7 @@ impl FlashManager {
             return Ok(());
         }
 
-        let mut flash = self.flash.lock().await;
+        let flash = self.flash.lock().await;
         pin_mut!(flash);
 
         let total_size = CONFIG_FLASH_SIZE as u32 + INIT_TOKEN.len() as u32;
@@ -109,7 +109,7 @@ impl FlashManager {
     }
 
     pub(crate) async fn is_initialized(&self) -> Result<bool, FlashManagerError> {
-        let mut flash = self.flash.lock().await;
+        let flash = self.flash.lock().await;
         pin_mut!(flash);
 
         let mut buf = [0u8; 4];
@@ -119,7 +119,7 @@ impl FlashManager {
     }
 
     pub(crate) async fn read_calibration_data(&self) -> Result<CalibrationData, FlashManagerError> {
-        let mut flash = self.flash.lock().await;
+        let flash = self.flash.lock().await;
         pin_mut!(flash);
 
         let mut cd = self.last_data.lock().await;
@@ -139,7 +139,7 @@ impl FlashManager {
             return Err(FlashManagerError::RaceCondition(existing_data.version, next_data.version));
         }
 
-        let mut flash = self.flash.lock().await;
+        let flash = self.flash.lock().await;
         pin_mut!(flash);
 
         // the whole page needs to be erased before write
