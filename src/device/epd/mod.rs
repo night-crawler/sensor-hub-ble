@@ -1,5 +1,4 @@
 use core::marker::PhantomData;
-use defmt::info;
 use embassy_time::{Duration, Timer};
 
 use crate::common::device::epd::constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE};
@@ -51,23 +50,23 @@ impl<E, I: DisplayInterface<E>> Epd2in13<E, I> {
         }
     }
     async fn send_command(&mut self, command: Command) -> Result<(), E> {
-        info!("Executing command {:?}", command);
+        // info!("Executing command {:?}", command);
         self.interface.send_command(command).await?;
-        info!("Executed command {:?}: DONE", command);
+        // info!("Executed command {:?}: DONE", command);
         Ok(())
     }
 
     async fn send_data(&mut self, data: &[u8]) -> Result<(), E> {
-        info!("Sending data");
+        // info!("Sending data");
         self.interface.send_data(data).await?;
-        info!("Data sent");
+        // info!("Data sent");
         Ok(())
     }
 
     async fn send_command_with_data(&mut self, command: Command, data: &[u8]) -> Result<(), E> {
-        info!("Executing command with data {:?}", command);
+        // info!("Executing command with data {:?}", command);
         self.interface.send_command_with_data(command, data).await?;
-        info!("Executed command with data {:?}: DONE", command);
+        // info!("Executed command with data {:?}: DONE", command);
         Ok(())
     }
 

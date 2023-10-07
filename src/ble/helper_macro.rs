@@ -10,7 +10,7 @@ macro_rules! impl_set_notification {
             match $event {
                 $(
                     $typ::[<$field CccdWrite>] { notifications } => {
-                        info!("{} {} notifications: {}", stringify!($typ), stringify!($field), notifications);
+                        // info!("{} {} notifications: {}", stringify!($typ), stringify!($field), notifications);
                         $dst.[<$field:snake:lower>] = notifications;
                     }
                 )+
@@ -45,7 +45,7 @@ macro_rules! impl_read_event_channel {
             #[embassy_executor::task]
             pub(crate) async fn [<read_ $name _notification_settings_channel>]() {
                 loop {
-                    let (connection, settings) = $channel.recv().await;
+                    let (connection, settings) = $channel.receive().await;
                     $processor.process_event(connection, settings).await;
                 }
             }
@@ -74,7 +74,7 @@ macro_rules! impl_settings_event_consumer {
         $settings_type:ty, $event_type:ty,  $($field:ident),+
     ) => {
         impl SettingsEventConsumer<$event_type> for $settings_type {
-            fn consume(&mut self, event: $event_type) {
+            async fn consume(&mut self, event: $event_type) {
                 impl_set_notification!(
                     $event_type,
                     event,

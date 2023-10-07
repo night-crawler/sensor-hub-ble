@@ -1,3 +1,5 @@
+use core::ops::Deref;
+
 use defmt::info;
 use embassy_nrf::gpio::{Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::peripherals::SPI2;
@@ -5,50 +7,75 @@ use embassy_nrf::spim;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use embedded_graphics_core::prelude::{DrawTarget, Point};
-use embedded_graphics_core::Drawable;
+use embedded_graphics_core::prelude::DrawTarget;
+use futures::FutureExt;
+use futures::select_biased;
 use rclite::Arc;
 use spim::Spim;
+use crate::common::ble::trigger_all_sensor_update;
+use crate::common::device::config::ALL_TASK_COMPLETION_INTERVAL;
 
-use crate::common::device::device_manager::Irqs;
-use crate::common::device::device_manager::{EpdControlPins, SpiTxPins};
+use crate::common::device::peripherals_manager::{EpdControlPins, SpiTxPins};
+use crate::common::device::peripherals_manager::Irqs;
+use crate::common::device::epd::{Display2in13, Epd2in13};
 use crate::common::device::epd::color::Color;
 use crate::common::device::epd::epd_controls::EpdControls;
 use crate::common::device::epd::graphics::DisplayRotation;
-use crate::common::device::epd::{Display2in13, Epd2in13};
-use crate::common::device::error::CustomSpimError;
+use crate::common::device::ui::controls::DisplayRefreshType;
+use crate::common::device::ui::device_ui::Ui;
+use crate::common::device::ui::DISPLAY_REFRESH_EVENTS;
+use crate::common::device::ui::error::UiError;
+use crate::common::device::ui::text_repr::TextRepr;
+use crate::common::device::ui::UI_STORE;
 
 #[embassy_executor::task]
 pub(crate) async fn epd_task(
     spi_pins: Arc<Mutex<ThreadModeRawMutex, SpiTxPins<SPI2>>>,
     control_pins: Arc<Mutex<ThreadModeRawMutex, EpdControlPins>>,
 ) {
-    loop {
-        Timer::after(Duration::from_secs(100000)).await;
+    let mut refresh_type = DisplayRefreshType::Full;
+    let mut is_forced = false;
+    let mut is_first_run = true;
 
-        info!("EPD task loop started");
+    loop {
+        trigger_all_sensor_update();
+        Timer::after(ALL_TASK_COMPLETION_INTERVAL).await;
+
         let mut spi_pins = spi_pins.lock().await;
         let mut control_pins = control_pins.lock().await;
 
-        let result = draw_something(&mut spi_pins, &mut control_pins).await;
+        let should_render = is_first_run || is_forced || UI_STORE.lock().await.lux > 5.0;
+        let result = if should_render {
+            let result = draw_ui(&mut spi_pins, &mut control_pins, refresh_type).await;
+            refresh_type = DisplayRefreshType::Full;
+            is_forced = false;
+            is_first_run = false;
+            result
+        } else {
+            Ok(())
+        };
 
-        match result {
-            Ok(_) => {
-                info!("Success!");
-            }
-            Err(e) => {
-                info!("EPD Error: {:?}", e);
-            }
+        if let Err(err) = result {
+            info!("EPD Error: {:?}", err);
         }
 
-        Timer::after(Duration::from_secs(50)).await;
+        select_biased! {
+            _ = Timer::after(Duration::from_secs(300)).fuse() => {}
+            next_refresh_type = DISPLAY_REFRESH_EVENTS.receive().fuse() => {
+                info!("Received refresh event: {:?}", next_refresh_type);
+                refresh_type = next_refresh_type;
+                is_forced = true;
+            }
+        }
     }
 }
 
-async fn draw_something(
+
+async fn draw_ui(
     spi_pins: &mut SpiTxPins<SPI2>,
     control_pins: &mut EpdControlPins,
-) -> Result<(), CustomSpimError> {
+    refresh_type: DisplayRefreshType,
+) -> Result<(), UiError<<Display2in13 as DrawTarget>::Error>> {
     let mut config = spim::Config::default();
     config.frequency = spi_pins.config.frequency;
     config.mode = spi_pins.config.mode;
@@ -69,45 +96,26 @@ async fn draw_something(
 
     info!("Initialized EPD");
 
-    info!("Clearing frame");
-    epd.clear(Color::White).await?;
-    info!("Cleared frame");
-
     let mut display = Display2in13::default();
-    display.clear(Color::White).unwrap();
-    display.set_rotation(DisplayRotation::Rotate0);
-    draw_text(&mut display, "Rotate 00000!", 5, 50);
-
     display.set_rotation(DisplayRotation::Rotate90);
-    draw_text(&mut display, "Rotate 90000!", 5, 50);
 
-    display.set_rotation(DisplayRotation::Rotate180);
-    draw_text(&mut display, "Rotate 180000!", 5, 50);
+    let mut ui = Ui::new(&mut display, Color::Black, Color::White);
+    let text_repr = {
+        let store = UI_STORE.lock().await;
+        TextRepr::from(store.deref())
+    };
+    ui.draw(text_repr)?;
 
-    display.set_rotation(DisplayRotation::Rotate270);
-    draw_text(&mut display, "LOL 270!", 5, 50);
-
-    epd.display(display.buffer()).await?;
+    match refresh_type {
+        DisplayRefreshType::Partial => {
+            epd.display_partial(display.buffer()).await?;
+        }
+        DisplayRefreshType::Full => {
+            epd.display(display.buffer()).await?;
+        }
+    }
 
     epd.sleep().await?;
 
-    info!("Updated and displayed frame");
-
     Ok(())
-}
-
-fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
-    let style = embedded_graphics::mono_font::MonoTextStyleBuilder::new()
-        .font(&embedded_graphics::mono_font::ascii::FONT_6X10)
-        .text_color(Color::Black)
-        .background_color(Color::White)
-        .build();
-
-    let text_style = embedded_graphics::text::TextStyleBuilder::new()
-        .baseline(embedded_graphics::text::Baseline::Top)
-        .build();
-
-    let _ =
-        embedded_graphics::text::Text::with_text_style(text, Point::new(x, y), style, text_style)
-            .draw(display);
 }

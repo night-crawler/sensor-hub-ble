@@ -20,6 +20,7 @@ impl<T> CustomStaticCell<T> {
 
     #[inline]
     #[allow(clippy::mut_from_ref)]
+    #[allow(dead_code)]
     pub fn init(&'static self, val: T) -> &'static mut T {
         self.uninit().write(val)
     }
@@ -36,6 +37,7 @@ impl<T> CustomStaticCell<T> {
 
     #[inline]
     #[allow(clippy::mut_from_ref)]
+    #[allow(dead_code)]
     pub fn init_with(&'static self, val: impl FnOnce() -> T) -> &'static mut T {
         self.uninit().write(val())
     }

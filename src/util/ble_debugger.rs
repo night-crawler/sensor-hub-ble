@@ -1,72 +1,54 @@
-use core::cmp::min;
 use core::fmt;
-use core::str::from_utf8_unchecked;
-use defmt::info;
 
+use defmt::info;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
+use nrf_softdevice::ble::Connection;
 
 use crate::common::ble::SERVER;
 use crate::common::device::config::{BLE_DEBUG_ARRAY_LEN, BLE_DEBUG_QUEUE_LEN};
 use crate::common::device::error::DeviceError;
-use crate::notify_all;
+use crate::common::util::buf_writer::WriteTo;
 use crate::DEVICE_EVENT_PROCESSOR;
+use crate::notify_all;
 
-static CHANNEL: Channel<ThreadModeRawMutex, [u8; BLE_DEBUG_ARRAY_LEN], BLE_DEBUG_QUEUE_LEN> =
+static CHANNEL: Channel<ThreadModeRawMutex, (Option<Connection>, [u8; BLE_DEBUG_ARRAY_LEN]), BLE_DEBUG_QUEUE_LEN> =
     Channel::new();
+
+
+pub(crate) trait ConnectionDebug {
+    fn debug(&self, args: fmt::Arguments);
+}
+
+impl ConnectionDebug for Connection {
+    fn debug(&self, args: fmt::Arguments) {
+        let _ = ble_debug_push(Some(self.clone()), args);
+    }
+}
 
 #[embassy_executor::task]
 pub(crate) async fn ble_debug_notify_task() {
     let server = SERVER.get();
 
     loop {
-        let message = CHANNEL.recv().await;
-        notify_all!(DEVICE_EVENT_PROCESSOR, server.dis, debug = &message);
-    }
-}
-
-pub struct WriteTo<'a> {
-    buf: &'a mut [u8],
-    len: usize,
-}
-
-impl<'a> WriteTo<'a> {
-    pub fn new(buf: &'a mut [u8]) -> Self {
-        WriteTo { buf, len: 0 }
-    }
-
-    pub fn to_str(self) -> Option<&'a str> {
-        if self.len <= self.buf.len() {
-            Some(unsafe { from_utf8_unchecked(&self.buf[..self.len]) })
+        let (connection, message) = CHANNEL.receive().await;
+        if let Some(connection) = connection {
+            let _ = SERVER.get().dis.debug_notify(&connection, &message);
         } else {
-            None
+            notify_all!(DEVICE_EVENT_PROCESSOR, server.dis, debug = &message);
         }
     }
 }
 
-impl<'a> fmt::Write for WriteTo<'a> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        if self.len > self.buf.len() {
-            return Err(fmt::Error);
-        }
 
-        let rem = &mut self.buf[self.len..];
-        let raw_s = s.as_bytes();
-        let num = min(raw_s.len(), rem.len());
-
-        rem[..num].copy_from_slice(&raw_s[..num]);
-        self.len += raw_s.len();
-
-        if num < raw_s.len() { Err(fmt::Error) } else { Ok(()) }
-    }
-}
-
-pub fn ble_debug_format(arg: fmt::Arguments) -> Result<(), DeviceError> {
-    let mut buf = [0u8; 64];
+pub fn ble_debug_push(connection: Option<Connection>, args: fmt::Arguments) -> Result<(), DeviceError> {
+    let mut buf = [0u8; BLE_DEBUG_ARRAY_LEN];
     let mut w = WriteTo::new(&mut buf);
-    fmt::write(&mut w, arg)?;
+    fmt::write(&mut w, args)?;
     info!("ble_debug: {}", w.to_str().unwrap_or("invalid utf8"));
-    CHANNEL.try_send(buf)?;
+    if let Err(_) = CHANNEL.try_send((connection, buf)) {
+        info!("Failed to put debug message to the channel");
+    }
     Ok(())
 }
 
@@ -75,6 +57,6 @@ macro_rules! ble_debug {
     (
         $($t:tt)*
     ) => {{
-        let _ = $crate::common::util::ble_debugger::ble_debug_format(format_args!($($t)*));
+        let _ = $crate::common::util::ble_debugger::ble_debug_push(None, format_args!($($t)*));
     }};
 }

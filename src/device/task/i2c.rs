@@ -1,4 +1,3 @@
-use defmt::info;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
@@ -8,16 +7,16 @@ use rclite::Arc;
 use crate::ble_debug;
 use crate::common::bitbang;
 use crate::common::bitbang::shared_i2c::SharedBitbangI2cPins;
-use crate::common::ble::{
-    ACCELEROMETER_EVENT_PROCESSOR, BME_EVENT_PROCESSOR, COLOR_EVENT_PROCESSOR, SERVER,
-};
+use crate::common::ble::{ACCELEROMETER_EVENT_PROCESSOR, BME_EVENT_PROCESSOR, COLOR_EVENT_PROCESSOR, FLASH_MANAGER, SERVER};
 use crate::common::ble::conv::ConvExt;
 use crate::common::ble::services::BleServer;
 use crate::common::device::{bme280, veml6040};
 use crate::common::device::bme280::{BME280_SLEEP_MODE, Bme280Error};
-use crate::common::device::device_manager::BitbangI2CPins;
 use crate::common::device::lis2dh12::{Lis2dh12, SlaveAddr};
 use crate::common::device::lis2dh12::reg::{FifoMode, FullScale, Odr};
+use crate::common::device::peripherals_manager::BitbangI2CPins;
+use crate::common::device::persistence::flash_manager::CalibrationData;
+use crate::common::device::ui::UI_STORE;
 use crate::notify_all;
 
 #[embassy_executor::task]
@@ -54,7 +53,6 @@ async fn read_bme_task(
     server: &BleServer,
 ) -> Result<(), Bme280Error> {
     loop {
-        // Timer::after(Duration::from_secs(100000)).await;
         let _token = BME_EVENT_PROCESSOR.wait_for_condition().await;
 
         let measurements = {
@@ -75,16 +73,23 @@ async fn read_bme_task(
             Timer::after(Duration::from_millis(100)).await;
 
             let measurements = bme.measure().await?;
-
             bme.set_mode(BME280_SLEEP_MODE).await?;
 
             measurements
-        };
+        }.calibrate(&FLASH_MANAGER.get().get_last_calibration_data().await);
 
-        info!(
-            "BME: t={}, h={}, p={}",
-            measurements.temperature, measurements.humidity, measurements.pressure
-        );
+        {
+            let mut store = UI_STORE.lock().await;
+            store.temperature = measurements.temperature;
+            store.humidity = measurements.humidity;
+            store.pressure = measurements.pressure;
+        }
+
+
+        // info!(
+        //     "BME: t={}, h={}, p={}",
+        //     measurements.temperature, measurements.humidity, measurements.pressure
+        // );
 
         let temperature = measurements.temperature.as_temp();
         let humidity = measurements.humidity.as_humidity();
@@ -107,7 +112,6 @@ async fn read_accel_task(
     server: &BleServer,
 ) -> Result<(), accelerometer::Error<bitbang::i2c::BitbangI2CError>> {
     loop {
-        // Timer::after(Duration::from_secs(100000)).await;
         let _token = ACCELEROMETER_EVENT_PROCESSOR.wait_for_condition().await;
         let measurements = {
             let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
@@ -130,7 +134,14 @@ async fn read_accel_task(
             measurements
         };
 
-        info!("LIS: x={}, y={}, z={}", measurements.x, measurements.y, measurements.z);
+        {
+            let mut store = UI_STORE.lock().await;
+            store.x = measurements.x;
+            store.y = measurements.y;
+            store.z = measurements.z;
+        }
+
+        // info!("LIS: x={}, y={}, z={}", measurements.x, measurements.y, measurements.z);
 
         notify_all!(
             ACCELEROMETER_EVENT_PROCESSOR,
@@ -155,13 +166,23 @@ async fn read_veml_task(
             let i2c = SharedBitbangI2cPins::new(i2c_pins.as_ref());
             let mut veml = veml6040::Veml6040::new(i2c);
             veml.set_measurement_mode(veml6040::MeasurementMode::Auto).await?;
-            veml.read_all_channels_with_oversampling(veml6040::IntegrationTime::_40ms, 50).await?
+            veml.read_all_channels_with_oversampling(veml6040::IntegrationTime::_1280ms, 2).await?
         };
 
-        let ambient = measurements.ambient_light(veml6040::IntegrationTime::_40ms);
+        let ambient = measurements.ambient_light(veml6040::IntegrationTime::_1280ms);
         let cct = measurements.compute_cct().unwrap_or(0.0f32) as u16;
 
-        info!("Color: {}; ambient light: {}, cct: {}", measurements, ambient, cct);
+        {
+            let mut store = UI_STORE.lock().await;
+            store.cct = cct;
+            store.lux = ambient;
+            store.r = measurements.red;
+            store.g = measurements.green;
+            store.b = measurements.blue;
+            store.w = measurements.white;
+        }
+
+        // info!("Color: {}; ambient light: {}, cct: {}", measurements, ambient, cct);
 
         notify_all!(
             COLOR_EVENT_PROCESSOR,
@@ -175,5 +196,24 @@ async fn read_veml_task(
         );
 
         Timer::after(COLOR_EVENT_PROCESSOR.get_timeout_duration()).await;
+    }
+}
+
+
+trait Calibration {
+    fn calibrate(&self, value: &CalibrationData) -> Self;
+}
+
+impl Calibration for bme280::Measurements {
+    fn calibrate(&self, value: &CalibrationData) -> Self {
+        let next_measurements = bme280::Measurements {
+            temperature: self.temperature + value.bme_temperature,
+            pressure: self.pressure + value.bme_pressure,
+            humidity: self.humidity + value.bme_humidity,
+        };
+
+        // info!("Calibrated BME: {:?} -> {:?}", self,  next_measurements);
+
+        next_measurements
     }
 }

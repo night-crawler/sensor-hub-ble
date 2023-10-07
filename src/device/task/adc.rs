@@ -1,17 +1,19 @@
 use core::mem;
+use core::ops::DerefMut;
 
-use defmt::info;
+use embassy_nrf::{peripherals, saadc};
+use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use embassy_nrf::saadc::{AnyInput, ChannelConfig, Oversample, Resistor, Resolution, Saadc};
 use embassy_nrf::timer::Frequency;
-use embassy_nrf::{peripherals, saadc};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use rclite::Arc;
 
-use crate::common::ble::conv::ConvExt;
 use crate::common::ble::{ADC_EVENT_PROCESSOR, DEVICE_EVENT_PROCESSOR, SERVER};
-use crate::common::device::device_manager::{Irqs, SaadcPins};
+use crate::common::ble::conv::ConvExt;
+use crate::common::device::peripherals_manager::{Irqs, SaadcPins};
+use crate::common::device::ui::UI_STORE;
 use crate::notify_all;
 
 #[embassy_executor::task]
@@ -23,34 +25,43 @@ pub(crate) async fn read_saadc_battery_voltage_task(
     loop {
         let _token = DEVICE_EVENT_PROCESSOR.wait_for_condition().await;
 
-        if DEVICE_EVENT_PROCESSOR
-            .enabled_on_any_connection(|settings| settings.battery_voltage)
-            .await
-        {
-            // taking just battery pin does not work; on the second time initialization SAADC
-            // ignores sample_counter from the current run
-            let (measurements, _, _) = {
-                let saadc_pins = saadc_pins.lock().await;
-                let sample_counter = 600;
-                measure::<8, 10>(&saadc_pins.pins, &saadc_pins.adc, 1000, sample_counter)
-                    .await
-                    .unwrap()
-            };
+        // taking just battery pin does not work; on the second time initialization SAADC
+        // ignores sample_counter from the current run
+        let (measurements, _, _) = {
+            let mut saadc_pins = saadc_pins.lock().await;
+            let saadc_pins = saadc_pins.deref_mut();
+            let mut bat_switch = Output::new(
+                &mut saadc_pins.bat_switch, Level::High, OutputDrive::Standard,
+            );
+            bat_switch.set_high();
+            Timer::after(Duration::from_millis(10)).await;
 
-            let voltages = compute_voltages(&measurements, 3.6);
-            let serialized_voltages = serialize_voltages(voltages);
+            let sample_counter = 600;
+            let measurements = measure::<8, 10>(&mut saadc_pins.pins, &mut saadc_pins.adc, 1000, sample_counter)
+                .await
+                .unwrap();
 
-            info!("Battery: {}", serialized_voltages[7]);
+            bat_switch.set_low();
+            measurements
+        };
 
-            notify_all!(
+        let mut voltages = compute_voltages(&measurements, 3.6);
+        voltages[7] = calculate_voltage_divider_in(voltages[7]);
+        let serialized_voltages = serialize_voltages(voltages);
+
+        UI_STORE.lock().await.bat_voltage = voltages[7];
+
+        // info!("Battery: {}; other: {:?}", voltages[7], voltages);
+
+        notify_all!(
                 DEVICE_EVENT_PROCESSOR,
                 server.dis,
                 battery_voltage = &serialized_voltages[7]
             );
-        }
 
         Timer::after(DEVICE_EVENT_PROCESSOR.get_timeout_duration()).await;
     }
+
 }
 
 #[embassy_executor::task]
@@ -60,7 +71,13 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
         let _token = ADC_EVENT_PROCESSOR.wait_for_condition().await;
 
         let (measurements, elapsed, count) = {
-            let saadc_pins = saadc_pins.lock().await;
+            let mut saadc_pins = saadc_pins.lock().await;
+            let saadc_pins = saadc_pins.deref_mut();
+            let mut power_switch = Output::new(
+                &mut saadc_pins.pw_switch, Level::High, OutputDrive::Standard,
+            );
+            power_switch.set_high();
+            Timer::after(Duration::from_millis(10)).await;
 
             // 1 and values around 400 seem to work. Other values give unpredictable results:
             // i.e., [0] and [1] channels get misplaced
@@ -86,24 +103,34 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
             // means just one buffer for 7 channels, so I just set it to 400.
             // (now changed to 8)
             let mut sample_counter = 600;
-            loop {
-                match measure::<8, 10>(&saadc_pins.pins, &saadc_pins.adc, 1000, sample_counter)
+            let measurements = loop {
+                match measure::<8, 10>(&mut saadc_pins.pins, &mut saadc_pins.adc, 1000, sample_counter)
                     .await
                 {
                     Ok(result) => {
                         break result;
                     }
-                    Err(duration) => {
+                    Err(_) => {
                         sample_counter = sample_counter * 99 / 100;
                     }
                 }
-            }
+            };
+
+            power_switch.set_low();
+            measurements
         };
 
         let voltages = compute_voltages(&measurements, 3.6);
+        {
+            let mut store = UI_STORE.lock().await;
+            for (index, voltage) in voltages.iter().enumerate() {
+                store.nrf_adc_voltages[index] = voltage.max(0f32);
+            }
+        }
+
         let serialized_voltages = serialize_voltages(voltages);
 
-        info!("SAADC: {:?}", serialized_voltages);
+        // info!("SAADC: {:?}\n{:?}", serialized_voltages, voltages);
 
         notify_all!(
             ADC_EVENT_PROCESSOR,
@@ -124,8 +151,8 @@ pub(crate) async fn read_saadc_task(saadc_pins: Arc<Mutex<ThreadModeRawMutex, Sa
 }
 
 async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
-    pins: &[AnyInput; NUM_PINS],
-    saadc_peripheral: &peripherals::SAADC,
+    pins: &mut [AnyInput; NUM_PINS],
+    saadc_peripheral: &mut peripherals::SAADC,
     oversample: usize,
     mut sample_counter: u32,
 ) -> Result<([f32; NUM_PINS], Duration, usize), Duration> {
@@ -178,7 +205,7 @@ async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
             saadc::CallbackResult::Continue
         },
     )
-    .await;
+        .await;
     let elapsed = start_time.elapsed();
 
     // if count < oversample {
@@ -189,8 +216,8 @@ async fn measure<const NUM_PINS: usize, const BUF_SIZE: usize>(
 }
 
 fn init_adc<'a, const N: usize>(
-    pins: &'a [AnyInput; N],
-    adc: &'a peripherals::SAADC,
+    pins: &'a mut [AnyInput; N],
+    adc: &'a mut peripherals::SAADC,
 ) -> Saadc<'a, N> {
     let mut config = saadc::Config::default();
     config.oversample = Oversample::BYPASS;
@@ -199,7 +226,7 @@ fn init_adc<'a, const N: usize>(
     let mut channel_configs: [ChannelConfig; N] = unsafe { mem::zeroed() };
     for (index, pin) in pins.into_iter().enumerate() {
         let mut channel_cfg = ChannelConfig::single_ended(pin);
-        channel_cfg.resistor = Resistor::PULLDOWN;
+        channel_cfg.resistor = Resistor::BYPASS;
         channel_cfg.time = saadc::Time::_40US;
         channel_configs[index] = channel_cfg;
     }
@@ -223,4 +250,10 @@ fn serialize_voltages<const N: usize>(raw_values: [f32; N]) -> [u16; N] {
         *ble = raw.as_voltage();
     });
     ble_repr_values
+}
+
+fn calculate_voltage_divider_in(v_out: f32) -> f32 {
+    let r1 = 47_000.0f32;
+    let r2 = 100_000.0f32;
+    v_out * (r1 + r2) / r2
 }

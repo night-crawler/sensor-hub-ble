@@ -1,12 +1,11 @@
-use defmt::info;
 use embassy_nrf::gpio::{AnyPin, Input, Output};
 use embassy_time::{Duration, Timer};
-use embedded_hal_async::spi::{SpiBusRead, SpiBusWrite};
+use embedded_hal_async::spi::{SpiBus};
 
 use crate::common::device::epd::interface::DisplayInterface;
 use crate::common::device::epd::traits::Command;
 
-pub(crate) struct EpdControls<'a, I: SpiBusWrite + SpiBusRead> {
+pub(crate) struct EpdControls<'a, I: SpiBus> {
     interface: &'a mut I,
     busy: Input<'a, AnyPin>,
     cs: Output<'a, AnyPin>,
@@ -15,7 +14,7 @@ pub(crate) struct EpdControls<'a, I: SpiBusWrite + SpiBusRead> {
     delay_us: u64,
 }
 
-impl<'a, I: SpiBusWrite + SpiBusRead> EpdControls<'a, I> {
+impl<'a, I: SpiBus> EpdControls<'a, I> {
     pub(crate) fn new(
         interface: &'a mut I,
         busy: Input<'a, AnyPin>,
@@ -30,7 +29,7 @@ impl<'a, I: SpiBusWrite + SpiBusRead> EpdControls<'a, I> {
 impl<'a, E, I> DisplayInterface<E> for EpdControls<'a, I>
 where
     E: From<<I as embedded_hal_async::spi::ErrorType>::Error>,
-    I: SpiBusWrite + SpiBusRead,
+    I: SpiBus,
 {
     async fn send_command<T: Command>(&mut self, command: T) -> Result<(), E> {
         self.dc.set_low();
@@ -91,7 +90,5 @@ where
         Timer::after(Duration::from_millis(2)).await;
         self.rst.set_high();
         Timer::after(Duration::from_millis(20)).await;
-
-        info!("Reset complete");
     }
 }

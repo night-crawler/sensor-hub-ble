@@ -3,7 +3,7 @@ pub(crate) trait IsTaskEnabled {
 }
 
 pub(crate) trait SettingsEventConsumer<E> {
-    fn consume(&mut self, event: E);
+    async fn consume(&mut self, event: E);
 }
 
 pub(crate) trait TimeoutEventCharacteristic {

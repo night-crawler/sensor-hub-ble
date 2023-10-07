@@ -1,4 +1,3 @@
-use core::mem;
 use embassy_time::{Duration, Timer};
 
 use embedded_hal_async::i2c;
