@@ -4,7 +4,7 @@
 
 - [x] BME280 (temperature, humidity, pressure)
 - [x] LIS2DH12 (accelerometer)
-- [x] VEML6040
+- [x] VEML6040 (rgb, white, cct, lux)
 - [x] nRF ADC for analog sensors
 - [x] Sensor reading exposed via BLE
 - [x] E-Paper display
@@ -33,8 +33,11 @@
 [Characteristic UUIDs](https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/characteristic_uuids.yaml)
 
 # Credits
-- [bme280](https://github.com/VersBinarii/bme280-rs)
-- [lis2dh12](https://github.com/tkeksa/lis2dh12)
+
+- [Embassy](https://github.com/embassy-rs/embassy)
+- [BME280](https://github.com/VersBinarii/bme280-rs)
+- [LIS2DH12](https://github.com/tkeksa/lis2dh12)
+- [VEML6040](https://github.com/eldruin/veml6040-rs)
 
 ```bash
 probe-rs-cli erase --chip nrf52840
