@@ -1,5 +1,7 @@
 # Sensor HUB BLE
 
+Embassy commit hash: `6627824c02f5efc092c1a1fd77914fdde9d15813`
+
 ## Features
 
 - [x] BME280 (temperature, humidity, pressure)
