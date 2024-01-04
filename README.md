@@ -8,7 +8,7 @@
 - [x] nRF ADC for analog sensors
 - [x] Sensor reading exposed via BLE
 - [x] E-Paper display
-- [x] Display force update (WIP) byy buttons
+- [x] Display force update (WIP) by buttons
 - [x] Sensors are not polled unless there's a connection and there's enough light
 - [x] SPI/I2C expander (allows to attach additional sensors/devices and drive them over BLE)
 - [x] PoC BLE data [collector](https://github.com/night-crawler/sensor-hub-ble-collector/)

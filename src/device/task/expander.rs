@@ -1,12 +1,14 @@
+use alloc::collections::LinkedList;
 use core::ops::DerefMut;
 
 use defmt::info;
 use embassy_nrf::peripherals;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Timer, with_timeout};
 use nrf_softdevice::ble::Connection;
 use rclite::Arc;
+use crate::ble_debug;
 
 use crate::common::ble::{SERVER, SPI_EXPANDER_EVENTS};
 use crate::common::ble::services::ExpanderServiceEvent;
@@ -171,12 +173,22 @@ pub(crate) async fn expander_mutex_timeout_task(
     pins: Arc<Mutex<ThreadModeRawMutex, ExpanderPins<peripherals::SPI3, peripherals::TWISPI1>>>,
 ) {
     loop {
-        let _token = TIMEOUT_TRACKER.wait().await;
-        for connection in Connection::iter() {
-            if TIMEOUT_TRACKER.verify_timeout(&connection).await {
-                handle_expander_disconnect(&connection, &pins).await;
-                connection.debug(format_args!("Expander mutex timed out"));
+        let token = with_timeout(Duration::from_secs(60 * 5), TIMEOUT_TRACKER.wait()).await;
+        if token.is_err() {
+            ble_debug!("Forcing expander mutex timeout");
+        }
+
+        let mut expired_connections = LinkedList::new();
+        TIMEOUT_TRACKER.retain(|connection, _, is_expired| {
+            if is_expired {
+                expired_connections.push_back(connection.clone());
             }
+            !is_expired
+        }).await;
+
+        for connection in expired_connections {
+            handle_expander_disconnect(&connection, &pins).await;
+            connection.debug(format_args!("Expander mutex timed out"));
         }
 
         Timer::after(Duration::from_millis(1000)).await;

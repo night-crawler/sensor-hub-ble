@@ -17,7 +17,7 @@ impl<K> TimeoutTracker<K> where K: Ord {
         Self {
             instances: Mutex::new(BTreeMap::new()),
             max_duration,
-            condition: Condition::new(),
+            condition: Condition::new(Some("timeout_tracker")),
         }
     }
     pub(crate) async fn register(&self, key: K) {
@@ -30,7 +30,7 @@ impl<K> TimeoutTracker<K> where K: Ord {
         self.condition.set(!instances.is_empty())
     }
 
-    pub(crate) async fn verify_timeout(&self, key: &K) -> bool {
+    pub(crate) async fn is_expired(&self, key: &K) -> bool {
         let mut instances = self.instances.lock().await;
         if let Some(ts) = instances.get(key) {
             if ts.elapsed() > self.max_duration {
@@ -50,5 +50,14 @@ impl<K> TimeoutTracker<K> where K: Ord {
 
     pub(crate) async fn wait(&self) -> ConditionToken<1> {
         self.condition.lock().await
+    }
+
+    pub(crate) async fn retain<F>(&self, mut f: F) where F: FnMut(&K, &mut Instant, bool) -> bool {
+        let mut instances = self.instances.lock().await;
+        instances.retain(|k, ts| {
+            let is_expired = ts.elapsed() > self.max_duration;
+            f(k, ts, is_expired)
+        });
+        self.condition.set(!instances.is_empty());
     }
 }

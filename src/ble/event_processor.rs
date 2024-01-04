@@ -77,11 +77,11 @@ impl<S, E, const T: usize> EventProcessor<S, E, T>
         S: Default + SettingsEventConsumer<E> + IsTaskEnabled + Clone,
         E: TimeoutEventCharacteristic,
 {
-    pub(crate) const fn new() -> Self {
+    pub(crate) const fn new(name: Option<&'static str>) -> Self {
         Self {
             notification_settings: Mutex::new(BTreeMap::new()),
             timeout: AtomicU32::new(1000),
-            condition: Condition::new(),
+            condition: Condition::new(name),
             _phantom_data: PhantomData,
         }
     }
